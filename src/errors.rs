@@ -1,7 +1,7 @@
 #![deny(unused_must_use)]
 #![deny(missing_docs)]
 use std::error::Error;
-use std::fmt::{Debug, Formatter};
+use std::fmt::{Debug, Display, Formatter};
 use std::num::ParseFloatError;
 use zip;
 
@@ -18,6 +18,24 @@ pub enum ParsingError {
 	InvalidCombinationError(InvalidCombinationError),
 	SerdeYAMLParserError(serde_yaml::Error)
 }
+
+impl Display for ParsingError {
+	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+		match self {
+			ParsingError::ParseError(e) => Display::fmt(&e, f),
+			ParsingError::IOError(e) => Display::fmt(&e, f),
+			ParsingError::InvalidIDError(e) => Display::fmt(&e, f),
+			ParsingError::ZipError(e) => Display::fmt(&e, f),
+			ParsingError::KeyNotFoundError(e) => Display::fmt(&e, f),
+			ParsingError::NoValuesError(e) => Display::fmt(&e, f),
+			ParsingError::RecursionLimitReached(e) => Display::fmt(&e, f),
+			ParsingError::InvalidCombinationError(e) => Display::fmt(&e, f),
+			ParsingError::SerdeYAMLParserError(e) => Display::fmt(&e, f)
+		}
+	}
+}
+
+impl Error for ParsingError {}
 
 impl From<ParseError> for ParsingError {
 	fn from(value: ParseError) -> Self { ParsingError::ParseError(value) }

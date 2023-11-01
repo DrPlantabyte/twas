@@ -1,13 +1,13 @@
 #![deny(unused_must_use)]
 #![deny(missing_docs)]
-
+#![doc = include_str!("../README.md")]
 use std::error::Error;
 use std::fs::File;
-use std::io::IsTerminal;
+use std::io::{ErrorKind, IsTerminal};
+use std::io::{Read, Write};
 use std::path::PathBuf;
 use std::process::ExitCode;
 use clap::{arg, Parser};
-use crate::errors::*;
 
 /// Struct to hold command-line arguments
 #[derive(Parser, Debug, Clone)]
@@ -15,17 +15,17 @@ use crate::errors::*;
 pub struct TwasArgs {
 	/// Random look-up table files to include. Supported formats: .txt, .csv. .json. yaml, and .yml
 	/// (or any of these with .gz or .zip compression)
-	#[args[short='i', long="include"]]
+	#[arg[short='i', long="include"]]
 	includes: Vec<PathBuf>,
 	/// Optional seed for making the random number generator deterministic
 	#[arg(short='s', long="seed")]
 	seed: Option<u64>,
 	/// Option to specify that output is written to the given filepath instead of being printed to
 	/// the terminal
-	#[args[short='o', long="output"]]
+	#[arg[short='o', long="output"]]
 	output: Option<PathBuf>,
 	/// Option to read target text for substitution from one or more files
-	#[args[short='f', long="file"]]
+	#[arg[short='f', long="file"]]
 	input: Vec<PathBuf>,
 	/// Text to perform substitution on, eg "Meet my pet ${animal}". At least one text string must
 	/// be provided unless you are using -f/--file or providing the target text via pipe
@@ -69,19 +69,19 @@ pub fn run(args: TwasArgs) -> Result<(), Box<dyn Error>>{
 	if ! stdin.is_terminal() {
 		targets.push(read_stdin(&stdin)?)
 	}
-	let fout: Option<File> =
+	let mut fout: Option<File> =
 		match args.output {
 			None => None,
 			Some(outfile) => {
-				File::create(outfile)?;
+				Some(File::create(outfile)?)
 			}
 		};
 	for target in targets {
 		let result = gen.eval(target.as_str())?;
 		println!("{}", result);
 		println!();
-		match &fout {
-			Some(f) => {write!(f, "{}\n\n", result)},
+		match &mut fout {
+			Some(f) => {write!(f, "{}\n\n", result)?;},
 			None => {}
 		}
 	}
@@ -93,5 +93,6 @@ fn read_stdin(stdin: &std::io::Stdin) -> Result<String, std::io::Error> {
 	let mut input =  Vec::new();
 	let mut handle = stdin.lock();
 	handle.read_to_end(&mut input)?;
-	Ok(String::from(input))
+	String::from_utf8(input)
+		.map_err(|utf_err| std::io::Error::new(ErrorKind::InvalidData, utf_err))
 }
