@@ -1,0 +1,8 @@
+{
+ "coins": {
+  "#{3d6x10} cp":  4,
+  "#{3d6x10} sp":  1,
+  "#{3d6x10} gp": 0.5
+ },
+ "junk": ["old boot", "pocket lint", "broken toy"]
+}

@@ -1,0 +1,23 @@
+{
+  "light": {
+    "primary": [
+      "red",
+      "green",
+      "blue"
+    ]
+  },
+  "paint": {
+    "primary": [
+      "red",
+      "yellow",
+      "blue"
+    ],
+    "secondary": {
+      "pastel": [
+        "peach",
+        "light green",
+        "lavender"
+      ]
+    }
+  }
+}

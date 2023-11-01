@@ -1,0 +1,8 @@
+money:
+  "100 copper pennies": 4
+  "10 silver dollars": 1.5
+  "1 gold ingot": 0.5
+junk:
+  - old boot
+  - pocket lint
+  - broken toy boat
