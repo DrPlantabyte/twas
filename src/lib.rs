@@ -10,7 +10,6 @@ use std::io::{BufReader, BufWriter, ErrorKind, Read};
 use std::path::{Path, PathBuf};
 use rand::Rng;
 use dicexp::{DiceBag, simple_rng, new_simple_rng};
-use flate2::read::GzDecoder;
 use rand::rngs::StdRng;
 use regex::Regex;
 use zip;
@@ -179,10 +178,10 @@ impl<R> Interpreter<R> where R: Rng {
 	/// .zip file instead of this method.
 	///
 	/// Supported file formats:
-	/// * .txt|.txt.gz - each line is a look-up table item
-	/// * .csv|.csv.gz - each column is a look-up table, with optional `weight` column for specifying probability
-	/// * .yaml|.yml|.yaml.gz|.yml.gz - each list (unbiased table) and each map of string-number pairs (weighted table) is a look-up table
-	/// * .json|.json.gz - each list (unbiased table) and each map of string-number pairs (weighted table) is a look-up table
+	/// * .txt - each line is a look-up table item
+	/// * .csv - each column is a look-up table, with optional `weight` column for specifying probability
+	/// * .yaml|.yml - each list (unbiased table) and each map of string-number pairs (weighted table) is a look-up table
+	/// * .json - each list (unbiased table) and each map of string-number pairs (weighted table) is a look-up table
 	/// * directory - recursively load all supported files in directory
 	/// * .zip - recursively load all supported files in the .zip archive
 	///
@@ -304,21 +303,6 @@ impl<R> Interpreter<R> where R: Rng {
 		if ! id.is_empty() { id.push_str("/"); }
 		id.push_str(&filename[0..filename.rfind(".").unwrap_or(filename.len())]);
 		match file_type.to_lowercase().as_str() {
-			"gz" => {
-				// automatically decompress .gz files
-				let tmp_dir = tempfile::tempdir()?;
-				let tmp_path = tmp_dir.path().join(path.file_name().ok_or_else(||
-					io::Error::new(ErrorKind::InvalidInput, "File has no name"))?
-				);
-				{
-					let input_file = File::open(path)?;
-					let output_file = File::create(&tmp_path)?;
-					let mut decoder = GzDecoder::new(input_file);
-					let mut writer = BufWriter::new(output_file);
-					io::copy(&mut decoder, &mut writer)?;
-				}
-				return self.load_file_namespaced(tmp_path, id_prefix);
-			},
 			"txt" => {
 				let input_file = File::open(path)?;
 				let reader = io::BufReader::new(input_file);
@@ -442,7 +426,7 @@ impl<R> Interpreter<R> where R: Rng {
 					)?;
 					let mut new_id: String = id_prefix.into();
 					new_id.push_str(dir_name);
-					return self.load_dir_namespaced(&file_path, new_id.as_str());
+					self.load_dir_namespaced(&file_path, new_id.as_str())?;
 				}
 				false => {
 					match file_path.extension() {
@@ -452,11 +436,9 @@ impl<R> Interpreter<R> where R: Rng {
 								io::Error::new(ErrorKind::Unsupported, "Invalid characters in file extension")
 							)?;
 							match suffix.to_lowercase().as_str() {
-								"txt" => self.load_file_namespaced(file_path.as_path(), id_prefix)?,
-								"csv" => self.load_file_namespaced(file_path.as_path(), id_prefix)?,
-								"yml" => self.load_file_namespaced(file_path.as_path(), id_prefix)?,
-								"yaml" => self.load_file_namespaced(file_path.as_path(), id_prefix)?,
-								"json" => self.load_file_namespaced(file_path.as_path(), id_prefix)?,
+								"txt" | "csv" | "yml" | "yaml" | "json" => {
+									self.load_file_namespaced(file_path.as_path(), id_prefix)?
+								}
 								_ => {} // ignore
 							}
 						}

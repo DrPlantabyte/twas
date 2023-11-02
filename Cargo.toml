@@ -22,7 +22,6 @@ rand = "0.8.5"
 tempfile = "3"
 regex="1.9"
 # file formats
-flate2 = "1"
 zip = "0.6"
 csv = "1.3"
 utf8-chars = "3.0.1"
