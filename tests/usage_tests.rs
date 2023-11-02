@@ -220,12 +220,13 @@ fn indefinite_article_test_3() {
 fn dir_test_1() {
 	use regex;
 	let mut gen = twas::Interpreter::from_rng(NotRandom::seed_from_u64(0));
-	gen.load_file("test-data/testdir").expect("Failed to load dir");
-	let loaded_ids = gen.list_ids();
+	gen.load_file("tests/test-data/testdir").expect("Failed to load dir");
+	let mut loaded_ids = gen.list_ids();
+	loaded_ids.sort();
 	println!("loaded_ids = {:?}", loaded_ids);
-	assert_eq!(&loaded_ids[..], &["gender", "kind/species", "human/names/male",
-		"human/names/female", "human/names/nonbinary", "elf/names/male",
-		"elf/names/female", "elf/names/nonbinary"]);
+	assert_eq!(&loaded_ids[..], &["elf/names/female", "elf/names/male", "elf/names/nonbinary",
+		"gender", "human/names/female", "human/names/male", "human/names/nonbinary",
+		"kind/species"]);
 	let input = "${{id: kind/species, ref: kind, hidden: true}}${{id: gender, ref: gender, hidden: true}}\
 	A ${gender} ${kind} named ${$kind/names/$gender}.";
 	print!("\ninput = '{}'\n", input);

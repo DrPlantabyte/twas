@@ -282,13 +282,16 @@ impl<R> Interpreter<R> where R: Rng {
 		validate_id(id_prefix)?;
 		let id_prefix = id_prefix.trim();
 		let filepath: PathBuf = filepath.into();
+		if ! filepath.exists(){
+			return Err(io::Error::from(ErrorKind::NotFound).into());
+		}
 		if filepath.is_dir() {
 			return self.load_dir_namespaced(filepath, id_prefix);
 		}
 		let path = filepath.as_path();
 		let file_type = path.extension()
 			.ok_or_else(||ParseError{
-				msg: Some("Unknown file type, please append .txt or other extension to it".into()), line: None, col: None
+				msg: Some(format!("{:?} has unknown file type, please append .txt or other extension to it", filepath)), line: None, col: None
 			})?.to_str().ok_or_else(||
 			io::Error::new(ErrorKind::Unsupported, "Invalid characters in file extension")
 		)?;
@@ -363,13 +366,13 @@ impl<R> Interpreter<R> where R: Rng {
 					serde_yaml::Value::Mapping(nested_map) => {
 						// sub-table
 						let mut next_id = id.clone();
-						if !next_id.is_empty(){next_id.push_str("/");}
+						if !id_prefix.is_empty() { next_id.push_str("/"); }
 						next_id.push_str(text.as_str());
 						self.load_yaml_mapping(nested_map, next_id.as_str())?;
 					},
 					serde_yaml::Value::Sequence(list) => {
 						let mut next_id = id.clone();
-						if !next_id.is_empty(){next_id.push_str("/");}
+						if !id_prefix.is_empty() { next_id.push_str("/"); }
 						next_id.push_str(text.as_str());
 						self.load_yaml_sequence(list, next_id.as_str())?;
 					},
@@ -439,7 +442,6 @@ impl<R> Interpreter<R> where R: Rng {
 					)?;
 					let mut new_id: String = id_prefix.into();
 					new_id.push_str(dir_name);
-					new_id.push_str("/");
 					return self.load_dir_namespaced(&file_path, new_id.as_str());
 				}
 				false => {
