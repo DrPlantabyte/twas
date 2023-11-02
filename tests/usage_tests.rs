@@ -214,6 +214,48 @@ fn indefinite_article_test_3() {
 	assert_eq!( "An elephant is a man's best friend. I like the elephant!", output.as_str(), "Incorrect evaluation");
 }
 
+
+
+#[test]
+fn dir_test_1() {
+	use regex;
+	let mut gen = twas::Interpreter::from_rng(NotRandom::seed_from_u64(0));
+	gen.load_file("tests/test-data/testdir").expect("Failed to load dir");
+	let mut loaded_ids = gen.list_ids();
+	loaded_ids.sort();
+	println!("loaded_ids = {:?}", loaded_ids);
+	assert_eq!(&loaded_ids[..], &["elf/names/female", "elf/names/male", "elf/names/nonbinary",
+		"elf/names/surname", "gender", "human/names/female", "human/names/male",
+		"human/names/nonbinary", "human/names/surname", "kind/species", "kind/weight"]);
+	let input = "${{id: kind/species, ref: kind, hidden: true}}${{id: gender, ref: gender, hidden: true}}\
+	A ${@gender} ${@kind} named ${$kind/names/$gender}.";
+	print!("\ninput = '{}'\n", input);
+	let output = gen.eval(input).unwrap();
+	println!("output = '{}'", output);
+	let matcher = regex::Regex::new("A (male|female|nonbinary) (human|elf) named (\\p{L}+).").unwrap();
+	assert!( matcher.is_match(output.as_str()), "Incorrect evaluation");
+}
+
+#[test]
+fn zip_test_1() {
+	use regex;
+	let mut gen = twas::Interpreter::from_rng(NotRandom::seed_from_u64(0));
+	gen.load_file("tests/test-data/testzip.zip").expect("Failed to load zip archive");
+	let mut loaded_ids = gen.list_ids();
+	loaded_ids.sort();
+	println!("loaded_ids = {:?}", loaded_ids);
+	assert_eq!(&loaded_ids[..], &["elf/names/female", "elf/names/male", "elf/names/nonbinary",
+		"elf/names/surname", "gender", "human/names/female", "human/names/male",
+		"human/names/nonbinary", "human/names/surname", "kind/species", "kind/weight"]);
+	let input = "${{id: kind/species, ref: kind, hidden: true}}${{id: gender, ref: gender, hidden: true}}\
+	A ${@gender} ${@kind} named ${$kind/names/$gender}.";
+	print!("\ninput = '{}'\n", input);
+	let output = gen.eval(input).unwrap();
+	println!("output = '{}'", output);
+	let matcher = regex::Regex::new("A (male|female|nonbinary) (human|elf) named (\\p{L}+).").unwrap();
+	assert!( matcher.is_match(output.as_str()), "Incorrect evaluation");
+}
+
 #[test]
 #[allow(unused_imports)]
 fn example01(){

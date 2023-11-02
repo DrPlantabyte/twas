@@ -170,7 +170,7 @@ Then you could use a chosen animal to pick a specific name, like this:
 You can also insert random numbers into your text with RPG dice notation. Number substitutions start with a `#` hash symbol followed by `{}` curly braces enclosing the dice expression, for example `#{1d6+2}` will be replaced with a random number from 3 to 8 (the expression "1d6+2" means "roll 1 die with 6 sides and add 2"). See [the dicexp crate](https://crates.io/crates/dicexp) for more details on supported dice expression syntax.
 
 # Random Look-up Table Formats
-Several different formats are supported for defining random look-up tables. Any of these files may be provided as-is or as gzip-compressed files ending in `.gz` (eg `dictionary.csv.gz`). The supported formats are described in detail here.
+Several different formats are supported for defining random look-up tables. The supported formats are described in detail here.
 
 ## .txt
 Each line in a `.txt` file will be parsed as an entry in a look-up table, with all possible values having equal weight. 
