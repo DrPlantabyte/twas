@@ -138,25 +138,26 @@ impl LookUpTable {
 
 	/// Adds an item to the lookup table by specifying its text and weight.
 	/// # Arguments
-	/// * `text` - The text value for the new item.
+	/// * `text` - The text value for the new item (accepts both &str and String).
 	/// * `weight` - The weight for the new item.
 	/// # Panics
 	/// Panics if the item's weight is negative or NaN.
-	pub fn add_item(&mut self, text: String, weight: f64) {
-		self.add(Item{text, weight})
+	pub fn add_item<T>(&mut self, text: T, weight: f64) where T: Into<String> {
+		self.add(Item{text: text.into(), weight})
 	}
 
 	/// Removes an item from the lookup table based on its text value.
 	/// # Arguments
-	/// * `text` - The text value to search for and remove.
+	/// * `text` - The text value to search for and remove (accepts both &str and String).
 	/// # Returns
-	/// Returns `true` if an item mathing the given text was found and removed, otherwise `false`.
-	pub fn remove_item(&mut self, text: &String) -> bool {
+	/// Returns `true` if an item matching the given text was found and removed, otherwise `false`.
+	pub fn remove_item<T>(&mut self, text: T) -> bool where T: Into<String> {
+		let text = text.into();
 		let mut removed = false;
 		let mut i = self.items.len();
 		while i > 0 {
 			i -= 1;
-			if &self.items[i].text == text {
+			if &self.items[i].text == &text {
 				removed = true;
 				self.items.remove(i);
 			}
@@ -172,5 +173,27 @@ impl LookUpTable {
 			sum += item.weight;
 		}
 		self.total = sum;
+	}
+}
+
+#[cfg(test)]
+mod unit_tests {
+	use crate::data::{Item, LookUpTable};
+
+	#[test]
+	fn weight_check(){
+		let w = 0.5f64;
+		let text = "test";
+		let i = Item{text: String::from(text), weight: w};
+		assert_eq!(i.get_weight(), w);
+		let mut lut = LookUpTable::new();
+		assert_eq!(lut.total, 0f64);
+		lut.add(i);
+		assert_eq!(lut.total, w);
+		lut.add_item("test2", w);
+		assert_eq!(lut.total, (w+w));
+		assert!(lut.remove_item(text));
+		assert!(! lut.remove_item(text));
+		assert_eq!(lut.total, w);
 	}
 }

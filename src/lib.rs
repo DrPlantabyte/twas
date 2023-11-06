@@ -6,7 +6,7 @@ use std::fmt::Debug;
 use std::fs::File;
 use std::{fs, io};
 use std::io::prelude::*;
-use std::io::{BufReader, BufWriter, ErrorKind, Read};
+use std::io::{BufReader, ErrorKind, Read};
 use std::path::{Path, PathBuf};
 use rand::Rng;
 use dicexp::{DiceBag, simple_rng, new_simple_rng};
@@ -506,7 +506,7 @@ impl<R> Interpreter<R> where R: Rng {
 		let lut = self.registry.get_mut(&id).unwrap();
 		let txt: String = txt.into();
 		for line in txt.split("\n") {
-			lut.add_item(line.trim().into(), 1.);
+			lut.add_item(line.trim(), 1.);
 		}
 		Ok(())
 	}
@@ -807,7 +807,7 @@ fn do_sub<R: Rng>(token: &str, reg: &HashMap<String, LookUpTable>, dice: &mut Di
 		if token.starts_with("id:") || token.starts_with(r#""id":"#) {
 			// looks like they forgot to use {{ double braces }} for JSON/YAML
 			eprintln!("WARNING: Substitution token '${{ {} }}' looks like JSON/YAML, but was not enclosed in double-braces. Treating it as JSON/YAML.", token);
-			sub = serde_yaml::from_str(token)?;
+			sub = serde_yaml::from_str(format!("{{{}}}",token).as_str())?;
 		} else {
 			if token.starts_with("@") {
 				// simple ref lookup: @ref

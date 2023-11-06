@@ -37,6 +37,50 @@ fn single_sub_test_2() {
 }
 
 #[test]
+fn double_sub_test_1() {
+	let mut gen = twas::Interpreter::from_rng(NotRandom::seed_from_u64(0));
+	gen.load_str("animal", include_str!("test-data/animal.txt"), "txt").expect("Failure");
+	let input = r#"I have a ${animal} and a ${animal}."#;
+	print!("\ninput = '{}'\n", input);
+	let output = gen.eval(input).unwrap();
+	println!("output = '{}'", output);
+	assert_eq!("I have a dog and a dog.", output.as_str(), "Incorrect evaluation");
+}
+
+#[test]
+fn double_sub_test_2() {
+	let mut gen = twas::Interpreter::from_rng(NotRandom::seed_from_u64(0));
+	gen.load_str("animal", include_str!("test-data/animal.txt"), "txt").expect("Failure");
+	let input = r#"I have a ${id: animal, count: 2, sep: " and a ", method: random}."#;
+	print!("\ninput = '{}'\n", input);
+	let output = gen.eval(input).unwrap();
+	println!("output = '{}'", output);
+	assert_eq!("I have a dog and a dog.", output.as_str(), "Incorrect evaluation");
+}
+
+#[test]
+fn double_sub_test_3() {
+	let mut gen = twas::Interpreter::from_rng(NotRandom::seed_from_u64(0));
+	gen.load_str("animal", include_str!("test-data/animal.txt"), "txt").expect("Failure");
+	let input = r#"I have a ${id: animal, count: 2, sep: " and a ", method: shuffle}."#;
+	print!("\ninput = '{}'\n", input);
+	let output = gen.eval(input).unwrap();
+	println!("output = '{}'", output);
+	assert_ne!("I have a dog and a dog.", output.as_str(), "Incorrect evaluation");
+}
+
+#[test]
+fn case_test_1() {
+	let mut gen = twas::Interpreter::from_rng(NotRandom::seed_from_u64(0));
+	gen.load_txt_str("animal", r#"the big dog of puppytown and the little cat on a house"#).expect("Failure");
+	let input = "Section 1: ${{id: animal, case: title}}";
+	print!("\ninput = '{}'\n", input);
+	let output = gen.eval(input).unwrap();
+	println!("output = '{}'", output);
+	assert_eq!("Section 1: The Big Dog of Puppytown and the Little Cat on a House", output.as_str(), "Incorrect evaluation");
+}
+
+#[test]
 fn csv_test() {
 	let mut gen = twas::Interpreter::from_rng(NotRandom::seed_from_u64(0));
 	gen.load_file("tests/test-data/words.csv").expect("IO Error");
@@ -51,6 +95,7 @@ fn csv_test() {
 		output, "Incorrect evaluation"
 	);
 }
+
 #[test]
 fn weighted_csv_test() {
 	let mut gen = twas::Interpreter::from_rng(NotRandom::seed_from_u64(0));
@@ -214,13 +259,31 @@ fn indefinite_article_test_3() {
 	assert_eq!( "An elephant is a man's best friend. I like the elephant!", output.as_str(), "Incorrect evaluation");
 }
 
-
-
 #[test]
 fn dir_test_1() {
 	use regex;
 	let mut gen = twas::Interpreter::from_rng(NotRandom::seed_from_u64(0));
 	gen.load_file("tests/test-data/testdir").expect("Failed to load dir");
+	let mut loaded_ids = gen.list_ids();
+	loaded_ids.sort();
+	println!("loaded_ids = {:?}", loaded_ids);
+	assert_eq!(&loaded_ids[..], &["elf/names/female", "elf/names/male", "elf/names/nonbinary",
+		"elf/names/surname", "gender", "human/names/female", "human/names/male",
+		"human/names/nonbinary", "human/names/surname", "kind/species", "kind/weight"]);
+	let input = "${{id: kind/species, ref: kind, hidden: true}}${{id: gender, ref: gender, hidden: true}}\
+	A ${@gender} ${@kind} named ${$kind/names/$gender}.";
+	print!("\ninput = '{}'\n", input);
+	let output = gen.eval(input).unwrap();
+	println!("output = '{}'", output);
+	let matcher = regex::Regex::new("A (male|female|nonbinary) (human|elf) named (\\p{L}+).").unwrap();
+	assert!( matcher.is_match(output.as_str()), "Incorrect evaluation");
+}
+
+#[test]
+fn dir_test_2() {
+	use regex;
+	let mut gen = twas::Interpreter::from_rng(NotRandom::seed_from_u64(0));
+	gen.load_dir("tests/test-data/testdir").expect("Failed to load dir");
 	let mut loaded_ids = gen.list_ids();
 	loaded_ids.sort();
 	println!("loaded_ids = {:?}", loaded_ids);
