@@ -16,7 +16,8 @@ pub enum ParsingError {
 	NoValuesError(NoValuesError),
 	RecursionLimitReached(RecursionLimitReached),
 	InvalidCombinationError(InvalidCombinationError),
-	SerdeYAMLParserError(serde_yaml::Error)
+	SerdeYAMLParserError(serde_yaml::Error),
+	SerdeJSONParserError(serde_json::Error)
 }
 
 impl Display for ParsingError {
@@ -30,7 +31,8 @@ impl Display for ParsingError {
 			ParsingError::NoValuesError(e) => Display::fmt(&e, f),
 			ParsingError::RecursionLimitReached(e) => Display::fmt(&e, f),
 			ParsingError::InvalidCombinationError(e) => Display::fmt(&e, f),
-			ParsingError::SerdeYAMLParserError(e) => Display::fmt(&e, f)
+			ParsingError::SerdeYAMLParserError(e) => Display::fmt(&e, f),
+			ParsingError::SerdeJSONParserError(e) => Display::fmt(&e, f)
 		}
 	}
 }
@@ -79,6 +81,10 @@ impl From<InvalidCombinationError> for ParsingError {
 
 impl From<serde_yaml::Error> for ParsingError {
 	fn from(value: serde_yaml::Error) -> Self { ParsingError::SerdeYAMLParserError(value) }
+}
+
+impl From<serde_json::Error> for ParsingError {
+	fn from(value: serde_json::Error) -> Self { ParsingError::SerdeJSONParserError(value) }
 }
 
 /// Represents an error that occurs during parsing with additional information.
