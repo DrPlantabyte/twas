@@ -14,6 +14,7 @@ use rand::rngs::StdRng;
 use regex::Regex;
 use zip;
 use serde_yaml;
+use serde_json;
 use zip::result::ZipError;
 use utf8_chars::BufReadCharsExt;
 mod errors;
@@ -911,9 +912,9 @@ fn do_sub<R: Rng>(token: &str, reg: &HashMap<String, LookUpTable>, dice: &mut Di
 					None => {}
 					Some(sep) => {
 						if loop_count == loop_total - 1 && (&sub.last_sep).is_some() {
-							text.push_str((&sub.last_sep).clone().unwrap().as_str())
+							text.push_str(&unescape(sub.last_sep.clone().unwrap().as_str())?.as_str())
 						} else {
-							text.push_str(sep.as_str())
+							text.push_str(unescape(sep)?.as_str())
 						}
 					}
 				}
@@ -975,6 +976,7 @@ fn do_sub<R: Rng>(token: &str, reg: &HashMap<String, LookUpTable>, dice: &mut Di
 	Ok(text)
 
 }
+
 
 /// When using `$` reference substitution in an ID string, this function is called to handle it.
 /// Replaces `$ref-id` with the previously generated value that was saved under that ref ID
@@ -1079,6 +1081,12 @@ fn title_case(text: String) -> String {
 		last_char = c;
 	}
 	return output;
+}
+
+/// Interprets JSON-style escapes such as `\n` as the intended characters
+fn unescape<T>(s: T) -> Result<String, serde_json::Error> where T: Into<String> {
+	let txt = format!("\"{}\"", s.into());
+	serde_json::from_str(txt.as_str())
 }
 
 /// FSM for in-house token parser (used to match {} curly braces in order to accurately extract
