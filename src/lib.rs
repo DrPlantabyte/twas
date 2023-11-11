@@ -869,7 +869,7 @@ fn do_sub<R: Rng>(token: &str, reg: &HashMap<String, LookUpTable>, dice: &mut Di
 	} else {
 		// draw the items
 		let items: Vec<Item>;
-		let lut = reg.get(sub.id.as_str()).ok_or_else(|| KeyNotFoundError { key: token.into() })?;
+		let lut = reg.get(sub.id.as_str()).ok_or_else(|| KeyNotFoundError { key: sub.id.into() })?;
 		let num_to_draw: usize;
 		match sub.count {
 			None => num_to_draw = 1,
