@@ -751,7 +751,7 @@ fn do_eval<R: Rng>(text: String, start_from: usize, reg: &HashMap<String, LookUp
 	if recursion > recursion_limit {
 		return Err(RecursionLimitReached{limit: recursion_limit}.into());
 	}
-	//println!("'{}'", text);
+	//eprintln!("'{}'", text);
 	let mut ref_map: HashMap<String, String> = HashMap::new();
 	let mut text = text;
 	let mut new_text;
@@ -764,7 +764,7 @@ fn do_eval<R: Rng>(text: String, start_from: usize, reg: &HashMap<String, LookUp
 				let (token, back) = tmp.split_at(end - start);
 				let token = &token[SUB_START.len()..token.len() - 1];
 				let substitution = do_sub(token.trim(), reg, dice, &mut ref_map, rng, recursion_limit, recursion)?;
-				//println!("\tToken substitution: {} -> {}", token, substitution);
+				//eprintln!("\tToken substitution: {} -> {}", token, substitution);
 				new_text = String::from(front);
 				new_text.push_str(substitution.as_str());
 				new_text.push_str(back);
@@ -781,7 +781,7 @@ fn do_eval<R: Rng>(text: String, start_from: usize, reg: &HashMap<String, LookUp
 				let (token, back) = tmp.split_at(end - start);
 				let dice_exp = &token[DICE_START.len()..token.len()-1];
 				let substitution = do_dice(dice_exp.trim(), dice)?;
-				//println!("\tDice substitution: {} -> {}", dice_exp, substitution);
+				//eprintln!("\tDice substitution: {} -> {}", dice_exp, substitution);
 				new_text = String::from(front);
 				new_text.push_str(substitution.as_str());
 				new_text.push_str(back);
@@ -797,6 +797,7 @@ fn do_eval<R: Rng>(text: String, start_from: usize, reg: &HashMap<String, LookUp
 /// `${` and `}` have already been stripped away).
 fn do_sub<R: Rng>(token: &str, reg: &HashMap<String, LookUpTable>, dice: &mut DiceBag<R>, ref_map: &mut HashMap<String, String>, rng: &mut impl Rng, recursion_limit: usize, recursion: usize) -> Result<String, ParsingError> {
 	// parse the token
+	//eprintln!("Token: '{}'", token);
 	let mut sub: SubstitutionOptions;
 	// try YAML parsing in case user forgot to use double braces {{ }}
 	if token.starts_with("{") && token.ends_with("}") {
@@ -807,7 +808,7 @@ fn do_sub<R: Rng>(token: &str, reg: &HashMap<String, LookUpTable>, dice: &mut Di
 		let token = token.trim();
 		if token.starts_with("id:") || token.starts_with(r#""id":"#) {
 			// looks like they forgot to use {{ double braces }} for JSON/YAML
-			eprintln!("WARNING: Substitution token '${{ {} }}' looks like JSON/YAML, but was not enclosed in double-braces. Treating it as JSON/YAML.", token);
+			//eprintln!("WARNING: Substitution token '${{ {} }}' looks like JSON/YAML, but was not enclosed in double-braces. Treating it as JSON/YAML.", token);
 			sub = serde_yaml::from_str(format!("{{{}}}",token).as_str())?;
 		} else {
 			if token.starts_with("@") {
@@ -826,9 +827,10 @@ fn do_sub<R: Rng>(token: &str, reg: &HashMap<String, LookUpTable>, dice: &mut Di
 	}
 	// apply references to id
 	if sub.id.contains("$") {
-		// eprint!("sub.id: {}", sub.id);
+		//eprintln!("ref_map: {:?}", ref_map);
+		//eprintln!("sub.id: {}", sub.id);
 		sub.id = do_ref_sub_in_id(sub.id.as_str(), ref_map)?;
-		// eprintln!(" -> {}", sub.id);
+		//eprintln!("new sub.id: {}", sub.id);
 	}
 	// generate substitution or recall a reference
 	let mut text;
@@ -966,6 +968,9 @@ fn do_sub<R: Rng>(token: &str, reg: &HashMap<String, LookUpTable>, dice: &mut Di
 	match &sub.reference {
 		None => {},
 		Some(ref_id) => {
+			// eval the string to store in case it contains nested references
+			text = do_eval(text, 0, reg, dice, rng, recursion_limit, recursion+1)?;
+			//eprintln!("Storing reference '{}' -> '{}'", ref_id, text);
 			validate_ref(ref_id)?;
 			let _ = ref_map.insert(ref_id.clone(), text.clone());
 		}
@@ -986,11 +991,14 @@ fn do_ref_sub_in_id(id: &str, ref_map: &HashMap<String, String>) -> Result<Strin
 	let mut new_id = String::from(id);
 	let mut tmp_id = String::from(id);
 	let finder: Regex = Regex::new(r#"\$[\d\pL_\-+]+"#).unwrap();
+	//eprintln!("do_ref_sub_in_id({}, {:?})", id, ref_map);
 	loop {
+		//eprintln!("loop...");
 		match finder.find(new_id.as_str()) {
 			None => break,
 			Some(matched) => {
 				let ref_id = String::from(&matched.as_str()[1..]); // srtip-off $ prefix
+				//eprintln!("ref_id: {}", ref_id);
 				match ref_map.get(&ref_id) {
 					None => return Err(KeyNotFoundError{ key: ref_id }.into()),
 					Some(ref_value) => {
