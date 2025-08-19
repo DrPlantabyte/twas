@@ -826,7 +826,9 @@ fn do_sub<R: Rng>(token: &str, reg: &HashMap<String, LookUpTable>, dice: &mut Di
 	}
 	// apply references to id
 	if sub.id.contains("$") {
+		// eprint!("sub.id: {}", sub.id);
 		sub.id = do_ref_sub_in_id(sub.id.as_str(), ref_map)?;
+		// eprintln!(" -> {}", sub.id);
 	}
 	// generate substitution or recall a reference
 	let mut text;
