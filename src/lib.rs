@@ -1,27 +1,27 @@
 #![deny(unused_must_use)]
 #![deny(missing_docs)]
 #![doc = include_str!("../README.md")]
+use dicexp::{DiceBag, new_simple_rng, simple_rng};
+use rand::Rng;
+use rand::rngs::StdRng;
+use regex::Regex;
+use serde_json;
+use serde_yaml;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::fs::File;
-use std::{fs, io};
 use std::io::prelude::*;
 use std::io::{BufReader, ErrorKind, Read};
 use std::path::{Path, PathBuf};
-use rand::Rng;
-use dicexp::{DiceBag, simple_rng, new_simple_rng};
-use rand::rngs::StdRng;
-use regex::Regex;
-use zip;
-use serde_yaml;
-use serde_json;
-use zip::result::ZipError;
+use std::{fs, io};
 use utf8_chars::BufReadCharsExt;
-mod errors;
+use zip;
+use zip::result::ZipError;
 mod data;
+mod errors;
 mod subspec;
-use crate::errors::*;
 use crate::data::{Item, LookUpTable};
+use crate::errors::*;
 use crate::subspec::SubstitutionOptions;
 
 /// Marks the start of a substitution expression
@@ -85,22 +85,31 @@ println!("{}", interpreter.eval(story).expect("Failed to eval"));
 ```
  */
 #[derive(Debug)]
-pub struct Interpreter<R> where R: Rng {
+pub struct Interpreter<R>
+where
+	R: Rng,
+{
 	registry: HashMap<String, LookUpTable>,
 	dice: DiceBag<StdRng>,
 	rng: R,
-	recursion_limit: usize
+	recursion_limit: usize,
 }
 
-impl<R> Interpreter<R> where R: Rng {
-
+impl<R> Interpreter<R>
+where
+	R: Rng,
+{
 	/// Creates a new interpreter using the provided random number generator.
 	/// # Arguments
 	/// * rng: The random number generator to use.
 	pub fn from_rng(mut rng: R) -> Interpreter<R> {
-		let dice_seed: u64 = rng.gen();
-		Interpreter { registry: HashMap::new(), rng, dice: DiceBag::new(simple_rng(dice_seed)),
-			recursion_limit: 1000}
+		let dice_seed: u64 = rng.random();
+		Interpreter {
+			registry: HashMap::new(),
+			rng,
+			dice: DiceBag::new(simple_rng(dice_seed)),
+			recursion_limit: 1000,
+		}
 	}
 
 	/// Sets the recursion limit to ensure that an infinite loop does not cause the program to
@@ -133,8 +142,19 @@ impl<R> Interpreter<R> where R: Rng {
 	/// ${{id: animal, aan: true}} and ${{id: animal, aan: true}}.";
 	/// println!("{}", interpreter.eval(story).expect("Failed to eval"));
 	/// ```
-	pub fn eval<T>(&mut self, text: T) -> Result<String, ParsingError> where T: Into<String> {
-		do_eval(text.into(), 0, &self.registry, &mut self.dice, &mut self.rng, self.recursion_limit, 0)
+	pub fn eval<T>(&mut self, text: T) -> Result<String, ParsingError>
+	where
+		T: Into<String>,
+	{
+		do_eval(
+			text.into(),
+			0,
+			&self.registry,
+			&mut self.dice,
+			&mut self.rng,
+			self.recursion_limit,
+			0,
+		)
 	}
 
 	/// Loads a string containing a random look-up table in plain text (one line per item),
@@ -155,20 +175,32 @@ impl<R> Interpreter<R> where R: Rng {
 	/// ```rust
 	/// use twas;
 	/// let mut interpreter = twas::Interpreter::new();
-	/// interpreter.load_str("animal", include_str!("../animal.txt"), "txt");
+	/// interpreter.load_str("animal", include_str!("../animal.txt"), "txt").expect("failed to load animal.txt");
 	/// let story = "I have a pet ${animal}.";
 	/// println!("{}", interpreter.eval(story).expect("Failed to eval"));
 	/// ```
-	pub fn load_str<T>(&mut self, id: &str, s: T, format: &str) -> Result<(), errors::ParsingError> where T: Into<String> {
+	pub fn load_str<T>(&mut self, id: &str, s: T, format: &str) -> Result<(), errors::ParsingError>
+	where
+		T: Into<String>,
+	{
 		validate_id(id)?;
 		let key = id;
 		match format.to_lowercase().as_str() {
-			"txt"  => self.load_txt_str(key, s)?,
-			"csv"  => self.load_csv_str(key, s)?,
+			"txt" => self.load_txt_str(key, s)?,
+			"csv" => self.load_csv_str(key, s)?,
 			"json" => self.load_json_str(key, s)?,
-			"yml"  => self.load_yaml_str(key, s)?,
+			"yml" => self.load_yaml_str(key, s)?,
 			"yaml" => self.load_yaml_str(key, s)?,
-			_ => return Err(ParseError{ msg: Some(format!(", format {} not supported", format)), line: None, col: None }.into())
+			_ => {
+				return Err(
+					ParseError {
+						msg: Some(format!(", format {} not supported", format)),
+						line: None,
+						col: None,
+					}
+					.into(),
+				);
+			},
 		};
 		Ok(())
 	}
@@ -223,7 +255,10 @@ impl<R> Interpreter<R> where R: Rng {
 	/// println!("{}", interpreter.eval(story).expect("Failed to eval"));
 	/// // prints: "I have a pet elephant. His name is Tuba! An elephant is a girl's best friend."
 	/// ```
-	pub fn load_file<P>(&mut self, filepath: P) -> Result<(), ParsingError> where P: Into<PathBuf> {
+	pub fn load_file<P>(&mut self, filepath: P) -> Result<(), ParsingError>
+	where
+		P: Into<PathBuf>,
+	{
 		self.load_file_namespaced(filepath, "")
 	}
 	/// Loads one (or more) random look-up table(s) from the given file (just like
@@ -278,30 +313,54 @@ impl<R> Interpreter<R> where R: Rng {
 	/// println!("{}", interpreter.eval(story).expect("Failed to eval"));
 	/// // prints: "I have a pet dog. His name is Spot!"
 	/// ```
-	pub fn load_file_namespaced<P>(&mut self, filepath: P, id_prefix: &str) -> Result<(), ParsingError> where P: Into<PathBuf> {
+	pub fn load_file_namespaced<P>(
+		&mut self,
+		filepath: P,
+		id_prefix: &str,
+	) -> Result<(), ParsingError>
+	where
+		P: Into<PathBuf>,
+	{
 		validate_id(id_prefix)?;
 		let id_prefix = id_prefix.trim();
 		let filepath: PathBuf = filepath.into();
-		if ! filepath.exists(){
+		if !filepath.exists() {
 			return Err(io::Error::from(ErrorKind::NotFound).into());
 		}
 		if filepath.is_dir() {
 			return self.load_dir_namespaced(filepath, id_prefix);
 		}
 		let path = filepath.as_path();
-		let file_type = path.extension()
-			.ok_or_else(||ParseError{
-				msg: Some(format!("{:?} has unknown file type, please append .txt or other extension to it", filepath)), line: None, col: None
-			})?.to_str().ok_or_else(||
-			io::Error::new(ErrorKind::Unsupported, "Invalid characters in file extension")
-		)?;
-		let filename = path.file_name().ok_or_else(||ParseError{
-			msg: Some("Cannot get name of file".into()), line: None, col: None
-		})?.to_str().ok_or_else(||
-			io::Error::new(ErrorKind::Unsupported, "Invalid characters in file name")
-		)?;
+		let file_type = path
+			.extension()
+			.ok_or_else(|| ParseError {
+				msg: Some(format!(
+					"{:?} has unknown file type, please append .txt or other extension to it",
+					filepath
+				)),
+				line: None,
+				col: None,
+			})?
+			.to_str()
+			.ok_or_else(|| {
+				io::Error::new(
+					ErrorKind::Unsupported,
+					"Invalid characters in file extension",
+				)
+			})?;
+		let filename = path
+			.file_name()
+			.ok_or_else(|| ParseError {
+				msg: Some("Cannot get name of file".into()),
+				line: None,
+				col: None,
+			})?
+			.to_str()
+			.ok_or_else(|| io::Error::new(ErrorKind::Unsupported, "Invalid characters in file name"))?;
 		let mut id: String = id_prefix.into();
-		if ! id.is_empty() { id.push_str("/"); }
+		if !id.is_empty() {
+			id.push_str("/");
+		}
 		id.push_str(&filename[0..filename.rfind(".").unwrap_or(filename.len())]);
 		match file_type.to_lowercase().as_str() {
 			"txt" => {
@@ -312,7 +371,8 @@ impl<R> Interpreter<R> where R: Rng {
 					self.get_or_create_lut(&id).add_item(entry, 1f64);
 				}
 			},
-			"csv" => {let input_file = File::open(path)?;
+			"csv" => {
+				let input_file = File::open(path)?;
 				let reader = io::BufReader::new(input_file);
 				self.load_csv(id.as_str(), reader)?;
 			},
@@ -326,10 +386,17 @@ impl<R> Interpreter<R> where R: Rng {
 				let reader = io::BufReader::new(input_file);
 				self.load_yaml(id.as_str(), reader)?;
 			},
-			"zip" => {
-				return self.load_zip_namespaced(filepath, id_prefix)
+			"zip" => return self.load_zip_namespaced(filepath, id_prefix),
+			_ => {
+				return Err(
+					ParseError {
+						msg: Some(format!("file type '{}' not supported", file_type)),
+						line: None,
+						col: None,
+					}
+					.into(),
+				);
 			},
-			_ => return Err(ParseError{ msg: Some(format!("file type '{}' not supported", file_type)), line: None, col: None }.into())
 		}
 		Ok(())
 	}
@@ -337,46 +404,93 @@ impl<R> Interpreter<R> where R: Rng {
 	/// Parses a YAML map object (recursive). If the map contains key:value pairs where the value
 	/// is a number, then it is parsed as a weighted look-up table. If the map contains nested
 	/// maps or lists, then it is recursively parsed.
-	fn load_yaml_mapping(&mut self, map: serde_yaml::mapping::Mapping, id_prefix: &str) -> Result<(), ParsingError> {
+	fn load_yaml_mapping(
+		&mut self,
+		map: serde_yaml::mapping::Mapping,
+		id_prefix: &str,
+	) -> Result<(), ParsingError> {
 		let id = String::from(id_prefix);
 		for (k, v) in map {
 			match k {
 				serde_yaml::Value::String(text) => match v {
 					serde_yaml::Value::Number(weight) => {
-						let weight: f64 = weight.as_f64().ok_or_else(|| ParseError{
-							msg: Some(format!("Could not convert {:?} to float", weight)), line: None, col: None,
+						let weight: f64 = weight.as_f64().ok_or_else(|| ParseError {
+							msg: Some(format!("Could not convert {:?} to float", weight)),
+							line: None,
+							col: None,
 						})?;
 						self.get_or_create_lut(&id).add_item(text, weight);
 					},
 					serde_yaml::Value::Mapping(nested_map) => {
 						// sub-table
 						let mut next_id = id.clone();
-						if !id_prefix.is_empty() { next_id.push_str("/"); }
+						if !id_prefix.is_empty() {
+							next_id.push_str("/");
+						}
 						next_id.push_str(text.as_str());
 						self.load_yaml_mapping(nested_map, next_id.as_str())?;
 					},
 					serde_yaml::Value::Sequence(list) => {
 						let mut next_id = id.clone();
-						if !id_prefix.is_empty() { next_id.push_str("/"); }
+						if !id_prefix.is_empty() {
+							next_id.push_str("/");
+						}
 						next_id.push_str(text.as_str());
 						self.load_yaml_sequence(list, next_id.as_str())?;
 					},
-					_ => return Err(ParseError{ msg: Some(format!("Weight must be a number, but weight for '{}' was '{:?}' instead", text, v)), line: None, col: None }.into())
+					_ => {
+						return Err(
+							ParseError {
+								msg: Some(format!(
+									"Weight must be a number, but weight for '{}' was '{:?}' instead",
+									text, v
+								)),
+								line: None,
+								col: None,
+							}
+							.into(),
+						);
+					},
 				},
-				_ => return Err(ParseError{ msg: Some(format!("Invalid key format, key must be a string")), line: None, col: None }.into())
+				_ => {
+					return Err(
+						ParseError {
+							msg: Some(format!("Invalid key format, key must be a string")),
+							line: None,
+							col: None,
+						}
+						.into(),
+					);
+				},
 			}
 		}
 		Ok(())
 	}
 
 	/// Parses a YAML list object as an unbiased look-up table
-	fn load_yaml_sequence(&mut self, list: serde_yaml::Sequence, id_prefix: &str) -> Result<(), ParsingError> {
+	fn load_yaml_sequence(
+		&mut self,
+		list: serde_yaml::Sequence,
+		id_prefix: &str,
+	) -> Result<(), ParsingError> {
 		let id = String::from(id_prefix);
-		for entry in list{
+		for entry in list {
 			match entry {
 				// list of strings
 				serde_yaml::Value::String(text) => self.get_or_create_lut(&id).add_item(text, 1f64),
-				_ => return Err(ParseError{ msg: Some(format!("Only lists of strings are supported, found {:?}", entry)), line: None, col: None }.into())
+				_ => {
+					return Err(
+						ParseError {
+							msg: Some(format!(
+								"Only lists of strings are supported, found {:?}",
+								entry
+							)),
+							line: None,
+							col: None,
+						}
+						.into(),
+					);
+				},
 			}
 		}
 		Ok(())
@@ -395,7 +509,10 @@ impl<R> Interpreter<R> where R: Rng {
 	/// * `dirpath`: The path to the directory to load.
 	/// # Returns
 	/// A `Result` indicating success or failure.
-	pub fn load_dir<P>(&mut self, dirpath: P) -> Result<(), ParsingError> where P: Into<PathBuf> {
+	pub fn load_dir<P>(&mut self, dirpath: P) -> Result<(), ParsingError>
+	where
+		P: Into<PathBuf>,
+	{
 		self.load_dir_namespaced(dirpath, "")
 	}
 
@@ -414,37 +531,52 @@ impl<R> Interpreter<R> where R: Rng {
 	/// the directory tree
 	/// # Returns
 	/// A `Result` indicating success or failure.
-	pub fn load_dir_namespaced<P>(&mut self, dirpath: P, id_prefix: &str) -> Result<(), ParsingError> where P: Into<PathBuf> {
+	pub fn load_dir_namespaced<P>(&mut self, dirpath: P, id_prefix: &str) -> Result<(), ParsingError>
+	where
+		P: Into<PathBuf>,
+	{
 		validate_id(id_prefix)?;
 		for file in fs::read_dir(dirpath.into())? {
 			let file_path = file?.path();
 			match file_path.is_dir() {
 				true => {
-					let dir_name = file_path.file_name().ok_or_else(||ParseError{
-						msg: Some("Cannot get name of directory".into()), line: None, col: None
-					})?.to_str().ok_or_else(||
-						io::Error::new(ErrorKind::Unsupported, "Invalid characters in directory file name")
-					)?;
+					let dir_name = file_path
+						.file_name()
+						.ok_or_else(|| ParseError {
+							msg: Some("Cannot get name of directory".into()),
+							line: None,
+							col: None,
+						})?
+						.to_str()
+						.ok_or_else(|| {
+							io::Error::new(
+								ErrorKind::Unsupported,
+								"Invalid characters in directory file name",
+							)
+						})?;
 					let mut new_id: String = id_prefix.into();
 					new_id.push_str(dir_name);
 					self.load_dir_namespaced(&file_path, new_id.as_str())?;
-				}
+				},
 				false => {
 					match file_path.extension() {
 						None => {}, // ignore
 						Some(suffix) => {
-							let suffix = suffix.to_str().ok_or_else(||
-								io::Error::new(ErrorKind::Unsupported, "Invalid characters in file extension")
-							)?;
+							let suffix = suffix.to_str().ok_or_else(|| {
+								io::Error::new(
+									ErrorKind::Unsupported,
+									"Invalid characters in file extension",
+								)
+							})?;
 							match suffix.to_lowercase().as_str() {
 								"txt" | "csv" | "yml" | "yaml" | "json" => {
 									self.load_file_namespaced(file_path.as_path(), id_prefix)?
-								}
-								_ => {} // ignore
+								},
+								_ => {}, // ignore
 							}
-						}
+						},
 					}
-				}
+				},
 			}
 		}
 		Ok(())
@@ -463,7 +595,10 @@ impl<R> Interpreter<R> where R: Rng {
 	/// * `zippath`: The path to the zip file to load.
 	/// # Returns
 	/// A `Result` indicating success or failure.
-	pub fn load_zip<P>(&mut self, zippath: P) -> Result<(), ParsingError> where P: Into<PathBuf> {
+	pub fn load_zip<P>(&mut self, zippath: P) -> Result<(), ParsingError>
+	where
+		P: Into<PathBuf>,
+	{
 		self.load_zip_namespaced(zippath, "")
 	}
 
@@ -481,7 +616,10 @@ impl<R> Interpreter<R> where R: Rng {
 	/// * `id_prefix`: ID prefix path, use an empty String ("") if not adding a prefix
 	/// # Returns
 	/// A `Result` indicating success or failure.
-	pub fn load_zip_namespaced<P>(&mut self, zippath: P, id_prefix: &str) -> Result<(), ParsingError> where P: Into<PathBuf> {
+	pub fn load_zip_namespaced<P>(&mut self, zippath: P, id_prefix: &str) -> Result<(), ParsingError>
+	where
+		P: Into<PathBuf>,
+	{
 		// extract files and then parse the directory
 		let tmp_dir = tempfile::tempdir()?;
 		unzip_file(zippath.into().as_path(), tmp_dir.path())?;
@@ -498,10 +636,13 @@ impl<R> Interpreter<R> where R: Rng {
 	/// * `txt`: the text to parse
 	/// # Returns
 	/// A `Result` indicating success or failure.
-	pub fn load_txt_str<T>(&mut self, id: &str, txt: T) -> Result<(), ParsingError> where T: Into<String> {
+	pub fn load_txt_str<T>(&mut self, id: &str, txt: T) -> Result<(), ParsingError>
+	where
+		T: Into<String>,
+	{
 		validate_id(id)?;
 		let id = String::from(id);
-		if ! self.registry.contains_key(&id) {
+		if !self.registry.contains_key(&id) {
 			self.registry.insert(id.clone(), LookUpTable::new());
 		}
 		let lut = self.registry.get_mut(&id).unwrap();
@@ -526,7 +667,10 @@ impl<R> Interpreter<R> where R: Rng {
 	/// * `txt`: the text to parse
 	/// # Returns
 	/// A `Result` indicating success or failure.
-	pub fn load_csv_str<T>(&mut self, id: &str, txt: T) -> Result<(), ParsingError> where T: Into<String> {
+	pub fn load_csv_str<T>(&mut self, id: &str, txt: T) -> Result<(), ParsingError>
+	where
+		T: Into<String>,
+	{
 		let txt: String = txt.into();
 		let reader = BufReader::new(txt.as_bytes());
 		self.load_csv(id, reader)
@@ -547,7 +691,10 @@ impl<R> Interpreter<R> where R: Rng {
 	/// * `txt`: the text to parse
 	/// # Returns
 	/// A `Result` indicating success or failure.
-	pub fn load_json_str<T>(&mut self, id: &str, txt: T) -> Result<(), ParsingError> where T: Into<String> {
+	pub fn load_json_str<T>(&mut self, id: &str, txt: T) -> Result<(), ParsingError>
+	where
+		T: Into<String>,
+	{
 		let txt: String = txt.into();
 		let reader = BufReader::new(txt.as_bytes());
 		self.load_json(id, reader)
@@ -568,7 +715,10 @@ impl<R> Interpreter<R> where R: Rng {
 	/// * `txt`: the text to parse
 	/// # Returns
 	/// A `Result` indicating success or failure.
-	pub fn load_yaml_str<T>(&mut self, id: &str, txt: T) -> Result<(), ParsingError> where T: Into<String> {
+	pub fn load_yaml_str<T>(&mut self, id: &str, txt: T) -> Result<(), ParsingError>
+	where
+		T: Into<String>,
+	{
 		let txt: String = txt.into();
 		let reader = BufReader::new(txt.as_bytes());
 		self.load_yaml(id, reader)
@@ -625,7 +775,7 @@ impl<R> Interpreter<R> where R: Rng {
 			Some(row) => {
 				let w = match weights_col {
 					None => 1f64,
-					Some(c) => row[c].parse::<f64>()?
+					Some(c) => row[c].parse::<f64>()?,
 				};
 				for i in 0..row.len() {
 					let col: &String = &cols[i];
@@ -634,14 +784,16 @@ impl<R> Interpreter<R> where R: Rng {
 						// empty cell, assume uneven table and do nothing
 					} else {
 						let mut id: String = id_prefix.into();
-						if !id_prefix.is_empty() { id.push_str("/"); }
+						if !id_prefix.is_empty() {
+							id.push_str("/");
+						}
 						id.push_str(col.as_str());
 						self.get_or_create_lut(&id).add_item(cell.clone(), w);
 					}
 				}
 				true
-			}
-		}{};
+			},
+		} {}
 		Ok(())
 	}
 
@@ -689,9 +841,19 @@ impl<R> Interpreter<R> where R: Rng {
 				// map of items and weights or map of maps of items
 				self.load_yaml_mapping(map, id)?
 			},
-			_ => return Err(ParseError{ msg: Some(
-				format!("Failed to parse {}, wrong structure (should be list or mapping object)", id)
-			), line: None, col: None }.into())
+			_ => {
+				return Err(
+					ParseError {
+						msg: Some(format!(
+							"Failed to parse {}, wrong structure (should be list or mapping object)",
+							id
+						)),
+						line: None,
+						col: None,
+					}
+					.into(),
+				);
+			},
 		}
 		Ok(())
 	}
@@ -732,7 +894,6 @@ impl<R> Interpreter<R> where R: Rng {
 }
 
 impl Interpreter<rand::rngs::StdRng> {
-
 	/// Creates a new interpreter
 	pub fn new() -> Interpreter<rand::rngs::StdRng> {
 		Interpreter::from_rng(new_simple_rng())
@@ -743,13 +904,20 @@ impl Interpreter<rand::rngs::StdRng> {
 	pub fn from_seed(seed: u64) -> Interpreter<rand::rngs::StdRng> {
 		Interpreter::from_rng(simple_rng(seed))
 	}
-
 }
 
 /// This is where all the action happens when evaluating a string for text substitution
-fn do_eval<R: Rng>(text: String, start_from: usize, reg: &HashMap<String, LookUpTable>, dice: &mut DiceBag<R>, rng: &mut impl Rng, recursion_limit: usize, recursion: usize) -> Result<String, ParsingError> {
+fn do_eval<R: Rng>(
+	text: String,
+	start_from: usize,
+	reg: &HashMap<String, LookUpTable>,
+	dice: &mut DiceBag<R>,
+	rng: &mut impl Rng,
+	recursion_limit: usize,
+	recursion: usize,
+) -> Result<String, ParsingError> {
 	if recursion > recursion_limit {
-		return Err(RecursionLimitReached{limit: recursion_limit}.into());
+		return Err(RecursionLimitReached { limit: recursion_limit }.into());
 	}
 	//eprintln!("'{}'", text);
 	let mut ref_map: HashMap<String, String> = HashMap::new();
@@ -763,13 +931,21 @@ fn do_eval<R: Rng>(text: String, start_from: usize, reg: &HashMap<String, LookUp
 				let (front, tmp) = text.split_at(start);
 				let (token, back) = tmp.split_at(end - start);
 				let token = &token[SUB_START.len()..token.len() - 1];
-				let substitution = do_sub(token.trim(), reg, dice, &mut ref_map, rng, recursion_limit, recursion)?;
+				let substitution = do_sub(
+					token.trim(),
+					reg,
+					dice,
+					&mut ref_map,
+					rng,
+					recursion_limit,
+					recursion,
+				)?;
 				//eprintln!("\tToken substitution: {} -> {}", token, substitution);
 				new_text = String::from(front);
 				new_text.push_str(substitution.as_str());
 				new_text.push_str(back);
 				pos = start;
-			}
+			},
 		}
 		text = new_text;
 	}
@@ -779,14 +955,14 @@ fn do_eval<R: Rng>(text: String, start_from: usize, reg: &HashMap<String, LookUp
 			Some((start, end)) => {
 				let (front, tmp) = text.split_at(start);
 				let (token, back) = tmp.split_at(end - start);
-				let dice_exp = &token[DICE_START.len()..token.len()-1];
+				let dice_exp = &token[DICE_START.len()..token.len() - 1];
 				let substitution = do_dice(dice_exp.trim(), dice)?;
 				//eprintln!("\tDice substitution: {} -> {}", dice_exp, substitution);
 				new_text = String::from(front);
 				new_text.push_str(substitution.as_str());
 				new_text.push_str(back);
 				pos = start;
-			}
+			},
 		}
 		text = new_text;
 	}
@@ -795,7 +971,15 @@ fn do_eval<R: Rng>(text: String, start_from: usize, reg: &HashMap<String, LookUp
 
 /// Generate a substitution from the provided substitution token, such as `${animal}` (note that the
 /// `${` and `}` have already been stripped away).
-fn do_sub<R: Rng>(token: &str, reg: &HashMap<String, LookUpTable>, dice: &mut DiceBag<R>, ref_map: &mut HashMap<String, String>, rng: &mut impl Rng, recursion_limit: usize, recursion: usize) -> Result<String, ParsingError> {
+fn do_sub<R: Rng>(
+	token: &str,
+	reg: &HashMap<String, LookUpTable>,
+	dice: &mut DiceBag<R>,
+	ref_map: &mut HashMap<String, String>,
+	rng: &mut impl Rng,
+	recursion_limit: usize,
+	recursion: usize,
+) -> Result<String, ParsingError> {
 	// parse the token
 	//eprintln!("Token: '{}'", token);
 	let mut sub: SubstitutionOptions;
@@ -809,7 +993,7 @@ fn do_sub<R: Rng>(token: &str, reg: &HashMap<String, LookUpTable>, dice: &mut Di
 		if token.starts_with("id:") || token.starts_with(r#""id":"#) {
 			// looks like they forgot to use {{ double braces }} for JSON/YAML
 			//eprintln!("WARNING: Substitution token '${{ {} }}' looks like JSON/YAML, but was not enclosed in double-braces. Treating it as JSON/YAML.", token);
-			sub = serde_yaml::from_str(format!("{{{}}}",token).as_str())?;
+			sub = serde_yaml::from_str(format!("{{{}}}", token).as_str())?;
 		} else {
 			if token.starts_with("@") {
 				// simple ref lookup: @ref
@@ -838,8 +1022,8 @@ fn do_sub<R: Rng>(token: &str, reg: &HashMap<String, LookUpTable>, dice: &mut Di
 		// is a reference, return previously generated item
 		let ref_id = String::from(&sub.id[1..]);
 		match ref_map.get(&ref_id) {
-			None => return Err(KeyNotFoundError{ key: ref_id }.into()),
-			Some(stored) => text = stored.clone()
+			None => return Err(KeyNotFoundError { key: ref_id }.into()),
+			Some(stored) => text = stored.clone(),
 		}
 		// prefix a/an if requested
 		text = match &sub.aan {
@@ -850,8 +1034,10 @@ fn do_sub<R: Rng>(token: &str, reg: &HashMap<String, LookUpTable>, dice: &mut Di
 					let mut buffer = String::from(indefinite_article_prefix_for(text.as_str()));
 					buffer.push_str(text.as_str());
 					buffer
-				} else { text }
-			}
+				} else {
+					text
+				}
+			},
 		};
 		// change case if requested
 		text = match &sub.case {
@@ -868,43 +1054,67 @@ fn do_sub<R: Rng>(token: &str, reg: &HashMap<String, LookUpTable>, dice: &mut Di
 					buffer.push_str(&s[1..]);
 					buffer
 				},
-				_ => return Err(ParsingError::ParseError(ParseError { msg: Some(ch_case.clone()), line: None, col: None }))
-			}
+				_ => {
+					return Err(ParsingError::ParseError(ParseError {
+						msg: Some(ch_case.clone()),
+						line: None,
+						col: None,
+					}));
+				},
+			},
 		}
 	} else {
 		// draw the items
 		let items: Vec<Item>;
-		let lut = reg.get(sub.id.as_str()).ok_or_else(|| KeyNotFoundError { key: sub.id.into() })?;
+		let lut = reg
+			.get(sub.id.as_str())
+			.ok_or_else(|| KeyNotFoundError { key: sub.id.into() })?;
 		let num_to_draw: usize;
 		match sub.count {
 			None => num_to_draw = 1,
-			Some(count_val) => {
-				match count_val {
-					serde_yaml::Value::Number(n) => {
-						num_to_draw = n.as_u64().ok_or_else(|| ParseError { msg: Some(format!("{} as unsigned integer", n)), line: None, col: None })? as usize
+			Some(count_val) => match count_val {
+				serde_yaml::Value::Number(n) => {
+					num_to_draw = n.as_u64().ok_or_else(|| ParseError {
+						msg: Some(format!("{} as unsigned integer", n)),
+						line: None,
+						col: None,
+					})? as usize
+				},
+				serde_yaml::Value::String(dice_ex) => {
+					let mut dice = DiceBag::new(simple_rng(rng.random()));
+					let roll = dice.eval_total(dice_ex.as_str()).map_err(|_| ParseError {
+						msg: Some(format!("'{}' is not a valid dice expression", dice_ex)),
+						line: None,
+						col: None,
+					})?;
+					if roll < 0 {
+						num_to_draw = 0;
+					} else {
+						num_to_draw = roll as usize;
 					}
-					serde_yaml::Value::String(dice_ex) => {
-						let mut dice = DiceBag::new(simple_rng(rng.gen()));
-						let roll = dice.eval_total(dice_ex.as_str()).map_err(|_| ParseError { msg: Some(format!("'{}' is not a valid dice expression", dice_ex)), line: None, col: None })?;
-						if roll < 0 {
-							num_to_draw = 0;
-						} else {
-							num_to_draw = roll as usize;
-						}
-					}
-					_ => { return Err(ParsingError::ParseError(ParseError { msg: Some(String::from(token)), line: None, col: None })) }
-				}
-			}
+				},
+				_ => {
+					return Err(ParsingError::ParseError(ParseError {
+						msg: Some(String::from(token)),
+						line: None,
+						col: None,
+					}));
+				},
+			},
 		}
 		match sub.method {
-			None => { items = lut.draw_n_random(rng, num_to_draw)? }
-			Some(method) => {
-				match method.as_str() {
-					"random" => items = lut.draw_n_random(rng, num_to_draw)?,
-					"shuffle" => items = lut.shuffle_draw(rng, num_to_draw)?,
-					_ => return Err(ParsingError::ParseError(ParseError { msg: Some(method.clone()), line: None, col: None }))
-				}
-			}
+			None => items = lut.draw_n_random(rng, num_to_draw)?,
+			Some(method) => match method.as_str() {
+				"random" => items = lut.draw_n_random(rng, num_to_draw)?,
+				"shuffle" => items = lut.shuffle_draw(rng, num_to_draw)?,
+				_ => {
+					return Err(ParsingError::ParseError(ParseError {
+						msg: Some(method.clone()),
+						line: None,
+						col: None,
+					}));
+				},
+			},
 		}
 		// format to text
 		text = String::new();
@@ -913,22 +1123,22 @@ fn do_sub<R: Rng>(token: &str, reg: &HashMap<String, LookUpTable>, dice: &mut Di
 		for item in items {
 			if loop_count > 0 {
 				match &sub.sep {
-					None => {}
+					None => {},
 					Some(sep) => {
 						if loop_count == loop_total - 1 && (&sub.last_sep).is_some() {
 							text.push_str(&unescape(sub.last_sep.clone().unwrap().as_str())?.as_str())
 						} else {
 							text.push_str(unescape(sep)?.as_str())
 						}
-					}
+					},
 				}
 			}
 			match &sub.prefix {
-				None => {}
-				Some(prefix) => text.push_str(prefix.as_str())
+				None => {},
+				Some(prefix) => text.push_str(prefix.as_str()),
 			}
 			// do substitutions in randomly drawn text (if any)
-			text = do_eval(text, 0, reg, dice, rng, recursion_limit, recursion+1)?;
+			text = do_eval(text, 0, reg, dice, rng, recursion_limit, recursion + 1)?;
 			// prefix a/an if requested
 			let item_text: String = match &sub.aan {
 				None => item.get_text().clone(),
@@ -938,8 +1148,10 @@ fn do_sub<R: Rng>(token: &str, reg: &HashMap<String, LookUpTable>, dice: &mut Di
 						let mut buffer = String::from(indefinite_article_prefix_for(item.get_text().as_str()));
 						buffer.push_str(item.get_text().as_str());
 						buffer
-					} else { item.get_text().clone() }
-				}
+					} else {
+						item.get_text().clone()
+					}
+				},
 			};
 			// change case if requested
 			match &sub.case {
@@ -954,12 +1166,18 @@ fn do_sub<R: Rng>(token: &str, reg: &HashMap<String, LookUpTable>, dice: &mut Di
 						text.push_str(&s[0..1].to_uppercase().as_str());
 						text.push_str(&s[1..]);
 					},
-					_ => return Err(ParsingError::ParseError(ParseError { msg: Some(ch_case.clone()), line: None, col: None }))
-				}
+					_ => {
+						return Err(ParsingError::ParseError(ParseError {
+							msg: Some(ch_case.clone()),
+							line: None,
+							col: None,
+						}));
+					},
+				},
 			}
 			match &sub.suffix {
-				None => {}
-				Some(suffix) => text.push_str(suffix.as_str())
+				None => {},
+				Some(suffix) => text.push_str(suffix.as_str()),
 			}
 			loop_count += 1;
 		}
@@ -969,21 +1187,23 @@ fn do_sub<R: Rng>(token: &str, reg: &HashMap<String, LookUpTable>, dice: &mut Di
 		None => {},
 		Some(ref_id) => {
 			// eval the string to store in case it contains nested references
-			text = do_eval(text, 0, reg, dice, rng, recursion_limit, recursion+1)?;
+			text = do_eval(text, 0, reg, dice, rng, recursion_limit, recursion + 1)?;
 			//eprintln!("Storing reference '{}' -> '{}'", ref_id, text);
 			validate_ref(ref_id)?;
 			let _ = ref_map.insert(ref_id.clone(), text.clone());
-		}
+		},
 	}
 	// hide text if requested
 	match sub.hidden {
-		None => {}
-		Some(hide_me) => if hide_me {text = String::from("")}
+		None => {},
+		Some(hide_me) => {
+			if hide_me {
+				text = String::from("")
+			}
+		},
 	}
 	Ok(text)
-
 }
-
 
 /// When using `$` reference substitution in an ID string, this function is called to handle it.
 /// Replaces `$ref-id` with the previously generated value that was saved under that ref ID
@@ -1000,7 +1220,7 @@ fn do_ref_sub_in_id(id: &str, ref_map: &HashMap<String, String>) -> Result<Strin
 				let ref_id = String::from(&matched.as_str()[1..]); // srtip-off $ prefix
 				//eprintln!("ref_id: {}", ref_id);
 				match ref_map.get(&ref_id) {
-					None => return Err(KeyNotFoundError{ key: ref_id }.into()),
+					None => return Err(KeyNotFoundError { key: ref_id }.into()),
 					Some(ref_value) => {
 						let (front, _) = new_id.split_at(matched.start());
 						let (_, back) = new_id.split_at(matched.end());
@@ -1008,9 +1228,9 @@ fn do_ref_sub_in_id(id: &str, ref_map: &HashMap<String, String>) -> Result<Strin
 						tmp_id.push_str(front);
 						tmp_id.push_str(ref_value.as_str());
 						tmp_id.push_str(back);
-					}
+					},
 				}
-			}
+			},
 		}
 		new_id = tmp_id.clone();
 	}
@@ -1018,21 +1238,33 @@ fn do_ref_sub_in_id(id: &str, ref_map: &HashMap<String, String>) -> Result<Strin
 }
 
 /// Returns an error result if the ID string is not valid, otherwise OK
-fn validate_id<T>(id: T) -> Result<(), ParsingError> where T: Into<String> {
+fn validate_id<T>(id: T) -> Result<(), ParsingError>
+where
+	T: Into<String>,
+{
 	let id = id.into();
 	let id_str = id.as_str();
 	if id_str.contains("@") || id_str.contains("$") {
-		return Err(InvalidIDError::new(format!("'{}' is not a valid ID. IDs cannot contain '@' or '$'", id_str)).into());
+		return Err(
+			InvalidIDError::new(format!(
+				"'{}' is not a valid ID. IDs cannot contain '@' or '$'",
+				id_str
+			))
+			.into(),
+		);
 	}
 	Ok(())
 }
 
 /// Returns an error result if the ref ID string is not valid, otherwise OK
-fn validate_ref<T>(id: T) -> Result<(), ParsingError> where T: Into<String> {
+fn validate_ref<T>(id: T) -> Result<(), ParsingError>
+where
+	T: Into<String>,
+{
 	let checker: Regex = Regex::new(r#"^[\d\pL_\-+]+$"#).unwrap();
 	let id = id.into();
 	let id_str = id.as_str();
-	if ! checker.is_match(id_str) {
+	if !checker.is_match(id_str) {
 		return Err(InvalidIDError::new(format!("'{}' is not a valid reference ID. Reference IDs can only contain letters, numbers, _, -, and/or +", id_str)).into());
 	}
 	Ok(())
@@ -1046,7 +1278,8 @@ fn indefinite_article_prefix_for(text: &str) -> &'static str {
 		|| text.starts_with("i")
 		|| text.starts_with("o")
 		|| text.starts_with("u")
-		|| text.starts_with("8") {
+		|| text.starts_with("8")
+	{
 		"an "
 	} else {
 		"a "
@@ -1055,10 +1288,13 @@ fn indefinite_article_prefix_for(text: &str) -> &'static str {
 
 /// Handle `#{...}` number generation (eg "2d6+3")
 fn do_dice<R>(dice_exp: &str, dice: &mut DiceBag<R>) -> Result<String, ParsingError>
-where R: Rng{
-	let roll = dice.eval_total(dice_exp).map_err(
-		|e| ParseError{ msg: e.msg, line: None, col: None, }
-	)?;
+where
+	R: Rng,
+{
+	let roll =
+		dice
+			.eval_total(dice_exp)
+			.map_err(|e| ParseError { msg: e.msg, line: None, col: None })?;
 	Ok(format!("{}", roll))
 }
 
@@ -1080,7 +1316,8 @@ fn title_case(text: String) -> String {
 				|| remainder.starts_with("an ")
 				|| remainder.starts_with("and ")
 				|| remainder.starts_with("in ")
-				|| remainder.starts_with("on ") {
+				|| remainder.starts_with("on ")
+			{
 				output.push_str(c.to_lowercase().to_string().as_str());
 			} else {
 				output.push_str(c.to_uppercase().to_string().as_str());
@@ -1094,7 +1331,10 @@ fn title_case(text: String) -> String {
 }
 
 /// Interprets JSON-style escapes such as `\n` as the intended characters
-fn unescape<T>(s: T) -> Result<String, serde_json::Error> where T: Into<String> {
+fn unescape<T>(s: T) -> Result<String, serde_json::Error>
+where
+	T: Into<String>,
+{
 	let txt = format!("\"{}\"", s.into());
 	serde_json::from_str(txt.as_str())
 }
@@ -1106,61 +1346,52 @@ enum TokenParserFSM {
 	Normal,
 	EscapeInQuote,
 	Escape,
-	Quote
+	Quote,
 }
 
 /// Find next substituion token, if it exists, returning the start and end byte indices in the
 /// provided UTF8 string
-fn next_token(text: &String, pos: usize, token_start: &str) -> Option<(usize,usize)> {
+fn next_token(text: &String, pos: usize, token_start: &str) -> Option<(usize, usize)> {
 	let (front, back) = text.split_at(pos);
 	let next_token_start = back.find(token_start);
 	match next_token_start {
-		None => {None}
+		None => None,
 		Some(start) => {
 			let (mid, back) = back.split_at(start);
 			let mut end: Option<usize> = None;
 			let mut depth = 0;
 			let mut state: TokenParserFSM = TokenParserFSM::Normal;
-			for (i, c) in back.char_indices(){
+			for (i, c) in back.char_indices() {
 				match state {
-					TokenParserFSM::Normal => {
-						match c {
-							'\\' => state = TokenParserFSM::Escape,
-							'"' => state = TokenParserFSM::Quote,
-							'{' => depth += 1,
-							'}' => {
-								if depth == 1 {
-									end = Some(i);
-									break;
-								} else {
-									depth -= 1;
-								}
+					TokenParserFSM::Normal => match c {
+						'\\' => state = TokenParserFSM::Escape,
+						'"' => state = TokenParserFSM::Quote,
+						'{' => depth += 1,
+						'}' => {
+							if depth == 1 {
+								end = Some(i);
+								break;
+							} else {
+								depth -= 1;
 							}
-							_ => {}
-						}
-					}
-					TokenParserFSM::Quote => {
-						match c {
-							'\\' => state = TokenParserFSM::EscapeInQuote,
-							'"' => state = TokenParserFSM::Normal,
-							_ => {}
-						}
-					}
-					TokenParserFSM::Escape => {
-						state = TokenParserFSM::Normal
-					}
-					TokenParserFSM::EscapeInQuote => {
-						state = TokenParserFSM::Quote
-					}
+						},
+						_ => {},
+					},
+					TokenParserFSM::Quote => match c {
+						'\\' => state = TokenParserFSM::EscapeInQuote,
+						'"' => state = TokenParserFSM::Normal,
+						_ => {},
+					},
+					TokenParserFSM::Escape => state = TokenParserFSM::Normal,
+					TokenParserFSM::EscapeInQuote => state = TokenParserFSM::Quote,
 				}
 			}
 			match end {
 				Some(len) => Some((front.len() + mid.len(), front.len() + mid.len() + len + 1)),
-				None => None
+				None => None,
 			}
-		}
+		},
 	}
-
 }
 
 /// In-house CSV parser implementation, following the
@@ -1175,7 +1406,9 @@ fn read_csv_row<R: BufRead>(reader: &mut utf8_chars::Chars<R>) -> Option<Vec<Str
 		match reader.next() {
 			None => {
 				// end of file
-				if count == 0 { return None; }
+				if count == 0 {
+					return None;
+				}
 				break;
 			},
 			Some(cr) => {
@@ -1194,7 +1427,7 @@ fn read_csv_row<R: BufRead>(reader: &mut utf8_chars::Chars<R>) -> Option<Vec<Str
 								} else {
 									cell_buffer.push(c);
 								}
-							}
+							},
 							false => {
 								// unquoted text
 								if c == '"' {
@@ -1224,16 +1457,16 @@ fn read_csv_row<R: BufRead>(reader: &mut utf8_chars::Chars<R>) -> Option<Vec<Str
 								} else {
 									cell_buffer.push(c);
 								}
-							}
+							},
 						}
 						last_char = c;
-					}
+					},
 					Err(_) => {
 						// invalid unicode
 						cell_buffer.push_str("�");
-					}
+					},
 				}
-			}
+			},
 		}
 		count += 1;
 	}
@@ -1280,9 +1513,9 @@ fn unzip_file(zip_path: &Path, dest_dir: &Path) -> Result<(), ZipError> {
 
 #[cfg(test)]
 mod unit_tests {
+	use crate::{DICE_START, SUB_START, read_csv_row};
 	use std::io::BufReader;
 	use utf8_chars::BufReadCharsExt;
-	use crate::{DICE_START, read_csv_row, SUB_START};
 
 	#[test]
 	fn test_next_token() {
@@ -1291,14 +1524,8 @@ mod unit_tests {
 			next_token(&"one ${two} three".into(), 0, SUB_START),
 			Some((4, 10))
 		);
-		assert_eq!(
-			next_token(&"one ${two} three".into(), 10, SUB_START),
-			None
-		);
-		assert_eq!(
-			next_token(&"one} two three".into(), 0, SUB_START),
-			None
-		);
+		assert_eq!(next_token(&"one ${two} three".into(), 10, SUB_START), None);
+		assert_eq!(next_token(&"one} two three".into(), 0, SUB_START), None);
 		assert_eq!(
 			next_token(&"${one} ${two} ${three}".into(), 0, SUB_START),
 			Some((0, 6))
@@ -1316,7 +1543,11 @@ mod unit_tests {
 			None
 		);
 		assert_eq!(
-			next_token(&"one ${{\"name\": \"two\", \"count\": 1}} three".into(), 0, SUB_START),
+			next_token(
+				&"one ${{\"name\": \"two\", \"count\": 1}} three".into(),
+				0,
+				SUB_START
+			),
 			Some((4, 34))
 		);
 		assert_eq!(
@@ -1327,10 +1558,7 @@ mod unit_tests {
 			next_token(&"one #{1d4} three".into(), 0, DICE_START),
 			Some((4, 10))
 		);
-		assert_eq!(
-			next_token(&"one #{1d4} three".into(), 10, DICE_START),
-			None
-		);
+		assert_eq!(next_token(&"one #{1d4} three".into(), 10, DICE_START), None);
 	}
 
 	#[test]
@@ -1351,28 +1579,40 @@ mod unit_tests {
 	fn test_read_csv_row_03() {
 		let mut src = BufReader::new("a,b without quotes,c".as_bytes());
 		let mut iter = src.chars();
-		assert_eq!(read_csv_row(&mut iter).unwrap(), vec!["a", "b without quotes", "c"]);
+		assert_eq!(
+			read_csv_row(&mut iter).unwrap(),
+			vec!["a", "b without quotes", "c"]
+		);
 	}
 
 	#[test]
 	fn test_read_csv_row_04() {
 		let mut src = BufReader::new(r#"a,"b with quotes",c"#.as_bytes());
 		let mut iter = src.chars();
-		assert_eq!(read_csv_row(&mut iter).unwrap(), vec!["a", "b with quotes", "c"]);
+		assert_eq!(
+			read_csv_row(&mut iter).unwrap(),
+			vec!["a", "b with quotes", "c"]
+		);
 	}
 
 	#[test]
 	fn test_read_csv_row_05() {
 		let mut src = BufReader::new(r#"a,b with ""quotes"",c"#.as_bytes());
 		let mut iter = src.chars();
-		assert_eq!(read_csv_row(&mut iter).unwrap(), vec!["a", "b with \"quotes\"", "c"]);
+		assert_eq!(
+			read_csv_row(&mut iter).unwrap(),
+			vec!["a", "b with \"quotes\"", "c"]
+		);
 	}
 
 	#[test]
 	fn test_read_csv_row_06() {
 		let mut src = BufReader::new(r#"a,"b with more ""quotes""",c"#.as_bytes());
 		let mut iter = src.chars();
-		assert_eq!(read_csv_row(&mut iter).unwrap(), vec!["a", "b with more \"quotes\"", "c"]);
+		assert_eq!(
+			read_csv_row(&mut iter).unwrap(),
+			vec!["a", "b with more \"quotes\"", "c"]
+		);
 	}
 
 	#[test]
@@ -1411,13 +1651,19 @@ mod unit_tests {
 	fn test_read_csv_row_11() {
 		let mut src = BufReader::new("a,\"b with\nnew-line\",c".as_bytes());
 		let mut iter = src.chars();
-		assert_eq!(read_csv_row(&mut iter).unwrap(), vec!["a", "b with\nnew-line", "c"]);
+		assert_eq!(
+			read_csv_row(&mut iter).unwrap(),
+			vec!["a", "b with\nnew-line", "c"]
+		);
 	}
 
 	#[test]
 	fn test_read_csv_row_12() {
 		let mut src = BufReader::new(r#"a,"b with, comma",c"#.as_bytes());
 		let mut iter = src.chars();
-		assert_eq!(read_csv_row(&mut iter).unwrap(), vec!["a", "b with, comma", "c"]);
+		assert_eq!(
+			read_csv_row(&mut iter).unwrap(),
+			vec!["a", "b with, comma", "c"]
+		);
 	}
 }

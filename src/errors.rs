@@ -17,7 +17,7 @@ pub enum ParsingError {
 	RecursionLimitReached(RecursionLimitReached),
 	InvalidCombinationError(InvalidCombinationError),
 	SerdeYAMLParserError(serde_yaml::Error),
-	SerdeJSONParserError(serde_json::Error)
+	SerdeJSONParserError(serde_json::Error),
 }
 
 impl Display for ParsingError {
@@ -32,7 +32,7 @@ impl Display for ParsingError {
 			ParsingError::RecursionLimitReached(e) => Display::fmt(&e, f),
 			ParsingError::InvalidCombinationError(e) => Display::fmt(&e, f),
 			ParsingError::SerdeYAMLParserError(e) => Display::fmt(&e, f),
-			ParsingError::SerdeJSONParserError(e) => Display::fmt(&e, f)
+			ParsingError::SerdeJSONParserError(e) => Display::fmt(&e, f),
 		}
 	}
 }
@@ -40,51 +40,69 @@ impl Display for ParsingError {
 impl Error for ParsingError {}
 
 impl From<ParseError> for ParsingError {
-	fn from(value: ParseError) -> Self { ParsingError::ParseError(value) }
+	fn from(value: ParseError) -> Self {
+		ParsingError::ParseError(value)
+	}
 }
 
-impl From<ParseFloatError> for ParsingError{
-	fn from(value: ParseFloatError) -> Self { ParsingError::ParseError(ParseError{
-		msg: Some(format!("{}", value)),
-		line: None,
-		col: None,
-	}) }
+impl From<ParseFloatError> for ParsingError {
+	fn from(value: ParseFloatError) -> Self {
+		ParsingError::ParseError(ParseError { msg: Some(format!("{}", value)), line: None, col: None })
+	}
 }
 
 impl From<std::io::Error> for ParsingError {
-	fn from(value: std::io::Error) -> Self { ParsingError::IOError(value) }
+	fn from(value: std::io::Error) -> Self {
+		ParsingError::IOError(value)
+	}
 }
 
 impl From<InvalidIDError> for ParsingError {
-	fn from(value: InvalidIDError) -> Self { ParsingError::InvalidIDError(value) }
+	fn from(value: InvalidIDError) -> Self {
+		ParsingError::InvalidIDError(value)
+	}
 }
 
 impl From<zip::result::ZipError> for ParsingError {
-	fn from(value: zip::result::ZipError) -> Self { ParsingError::ZipError(value) }
+	fn from(value: zip::result::ZipError) -> Self {
+		ParsingError::ZipError(value)
+	}
 }
 
 impl From<KeyNotFoundError> for ParsingError {
-	fn from(value: KeyNotFoundError) -> Self { ParsingError::KeyNotFoundError(value) }
+	fn from(value: KeyNotFoundError) -> Self {
+		ParsingError::KeyNotFoundError(value)
+	}
 }
 
 impl From<NoValuesError> for ParsingError {
-	fn from(value: NoValuesError) -> Self { ParsingError::NoValuesError(value) }
+	fn from(value: NoValuesError) -> Self {
+		ParsingError::NoValuesError(value)
+	}
 }
 
 impl From<RecursionLimitReached> for ParsingError {
-	fn from(value: RecursionLimitReached) -> Self { ParsingError::RecursionLimitReached(value) }
+	fn from(value: RecursionLimitReached) -> Self {
+		ParsingError::RecursionLimitReached(value)
+	}
 }
 
 impl From<InvalidCombinationError> for ParsingError {
-	fn from(value: InvalidCombinationError) -> Self { ParsingError::InvalidCombinationError(value) }
+	fn from(value: InvalidCombinationError) -> Self {
+		ParsingError::InvalidCombinationError(value)
+	}
 }
 
 impl From<serde_yaml::Error> for ParsingError {
-	fn from(value: serde_yaml::Error) -> Self { ParsingError::SerdeYAMLParserError(value) }
+	fn from(value: serde_yaml::Error) -> Self {
+		ParsingError::SerdeYAMLParserError(value)
+	}
 }
 
 impl From<serde_json::Error> for ParsingError {
-	fn from(value: serde_json::Error) -> Self { ParsingError::SerdeJSONParserError(value) }
+	fn from(value: serde_json::Error) -> Self {
+		ParsingError::SerdeJSONParserError(value)
+	}
 }
 
 /// Represents an error that occurs during parsing with additional information.
@@ -98,7 +116,7 @@ pub struct ParseError {
 	pub col: Option<u64>,
 }
 
-impl ParseError{
+impl ParseError {
 	/// Formats and prints the error message
 	fn print(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
 		match &self.msg {
@@ -106,11 +124,11 @@ impl ParseError{
 			Some(s) => write!(f, "{}", s)?,
 		}
 		match &self.line {
-			None => {}
+			None => {},
 			Some(s) => {
 				write!(f, ", error on line {}", s)?;
 				match &self.col {
-					None => {}
+					None => {},
 					Some(c) => write!(f, ", column {}", c)?,
 				}
 			},
@@ -133,13 +151,12 @@ impl core::fmt::Display for ParseError {
 
 impl Error for ParseError {}
 
-
 #[derive(Clone)]
 pub struct KeyNotFoundError {
-	pub key: String
+	pub key: String,
 }
 
-impl KeyNotFoundError{
+impl KeyNotFoundError {
 	/// Formats and prints the error message
 	fn print(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
 		write!(f, "Key '{}' not found in look-up table", self.key)
@@ -160,12 +177,10 @@ impl core::fmt::Display for KeyNotFoundError {
 
 impl Error for KeyNotFoundError {}
 
-
-
 #[derive(Clone)]
 pub struct NoValuesError {}
 
-impl NoValuesError{
+impl NoValuesError {
 	/// Formats and prints the error message
 	fn print(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
 		write!(f, "Empty data set; no values to choose from")
@@ -186,16 +201,19 @@ impl core::fmt::Display for NoValuesError {
 
 impl Error for NoValuesError {}
 
-
 #[derive(Clone)]
 pub struct RecursionLimitReached {
-	pub limit: usize
+	pub limit: usize,
 }
 
-impl RecursionLimitReached{
+impl RecursionLimitReached {
 	/// Formats and prints the error message
 	fn print(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-		write!(f, "Recursion limit {} exceeded. Substitution text contains circular reference or is too complex to operate upon.", self.limit)
+		write!(
+			f,
+			"Recursion limit {} exceeded. Substitution text contains circular reference or is too complex to operate upon.",
+			self.limit
+		)
 	}
 }
 
@@ -213,16 +231,18 @@ impl core::fmt::Display for RecursionLimitReached {
 
 impl Error for RecursionLimitReached {}
 
-
 #[derive(Clone)]
 pub struct InvalidIDError {
-	msg: String
+	msg: String,
 }
 
-impl InvalidIDError{
+impl InvalidIDError {
 	/// Creates a new `InvalidIDError` with a custom message.
-	pub fn new<T>(msg: T) -> InvalidIDError where T: Into<String> {
-		InvalidIDError{msg: msg.into()}
+	pub fn new<T>(msg: T) -> InvalidIDError
+	where
+		T: Into<String>,
+	{
+		InvalidIDError { msg: msg.into() }
 	}
 	/// Formats and prints the error message
 	fn print(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -244,16 +264,18 @@ impl core::fmt::Display for InvalidIDError {
 
 impl Error for InvalidIDError {}
 
-
 #[derive(Clone)]
 pub struct InvalidCombinationError {
-	msg: String
+	msg: String,
 }
 
-impl InvalidCombinationError{
+impl InvalidCombinationError {
 	/// Creates a new `InvalidCombinationError` with a custom message.
-	pub fn new<T>(msg: T) -> InvalidCombinationError where T: Into<String> {
-		InvalidCombinationError{msg: msg.into()}
+	pub fn new<T>(msg: T) -> InvalidCombinationError
+	where
+		T: Into<String>,
+	{
+		InvalidCombinationError { msg: msg.into() }
 	}
 	/// Formats and prints the error message
 	fn print(&self, f: &mut Formatter<'_>) -> std::fmt::Result {

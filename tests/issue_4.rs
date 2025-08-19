@@ -30,11 +30,21 @@ Campos,Lisa
 
 fn load_data(seed: u64) -> twas::Interpreter<impl Rng> {
 	let mut interp = twas::Interpreter::from_seed(seed);
-	interp.load_yaml_str("culture-by-region", CULTURE_BY_REGION_YAML).unwrap();
-	interp.load_yaml_str("species-by-culture", SPECIES_BY_CULTURE_YAML).unwrap();
-	interp.load_yaml_str("gender-by-species", GENDER_BY_SPECIES_YAML).unwrap();
-	interp.load_yaml_str("name-by-culture", NAME_BY_CULTURE_YAML).unwrap();
-	interp.load_csv_str("names/iltanno", NAMES_ILTANNO_CSV).unwrap();
+	interp
+		.load_yaml_str("culture-by-region", CULTURE_BY_REGION_YAML)
+		.unwrap();
+	interp
+		.load_yaml_str("species-by-culture", SPECIES_BY_CULTURE_YAML)
+		.unwrap();
+	interp
+		.load_yaml_str("gender-by-species", GENDER_BY_SPECIES_YAML)
+		.unwrap();
+	interp
+		.load_yaml_str("name-by-culture", NAME_BY_CULTURE_YAML)
+		.unwrap();
+	interp
+		.load_csv_str("names/iltanno", NAMES_ILTANNO_CSV)
+		.unwrap();
 	interp
 }
 
@@ -45,7 +55,7 @@ fn test_nested_reference() {
 	eprintln!("       test_str: {}", test_str);
 	let expected_output = "A female Iltanno Human named Lisa Campos.";
 	eprintln!("expected_output: {}", expected_output);
-	eprint!  ("  actual_output: ");
+	eprint!("  actual_output: ");
 	let actual_output = interpreter.eval(test_str).unwrap();
 	eprintln!("{}", actual_output);
 	assert_eq!(expected_output, actual_output);
