@@ -1,4 +1,4 @@
-use rand::Rng;
+use rand::prelude::*;
 use twas;
 
 const CULTURE_BY_REGION_YAML: &str = r#"
@@ -28,7 +28,7 @@ const NAMES_ILTANNO_CSV: &str = r#"family,female
 Campos,Lisa
 "#;
 
-fn load_data(seed: u64) -> twas::Interpreter<impl Rng> {
+fn load_data(seed: u64) -> twas::Interpreter<impl RngExt> {
 	let mut interp = twas::Interpreter::from_seed(seed);
 	interp
 		.load_yaml_str("culture-by-region", CULTURE_BY_REGION_YAML)

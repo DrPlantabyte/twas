@@ -16,7 +16,7 @@ pub enum ParsingError {
 	NoValuesError(NoValuesError),
 	RecursionLimitReached(RecursionLimitReached),
 	InvalidCombinationError(InvalidCombinationError),
-	SerdeYAMLParserError(serde_yaml::Error),
+	SerdeYAMLParserError(serde_yaml_neo::Error),
 	SerdeJSONParserError(serde_json::Error),
 }
 
@@ -93,8 +93,8 @@ impl From<InvalidCombinationError> for ParsingError {
 	}
 }
 
-impl From<serde_yaml::Error> for ParsingError {
-	fn from(value: serde_yaml::Error) -> Self {
+impl From<serde_yaml_neo::Error> for ParsingError {
+	fn from(value: serde_yaml_neo::Error) -> Self {
 		ParsingError::SerdeYAMLParserError(value)
 	}
 }

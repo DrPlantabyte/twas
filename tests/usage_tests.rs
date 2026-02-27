@@ -1,5 +1,6 @@
+use std::convert::Infallible;
 use bytemuck;
-use rand::{RngCore, SeedableRng};
+use rand::prelude::*;
 use twas;
 
 // TESTS //
@@ -235,6 +236,7 @@ ${{"id": "loot/junk", "count": "2d4", "prefix": " * ", "suffix": "\n"}}"#;
 	println!("output = '{}'", output);
 	assert_eq!(
 		r#"You found:
+ * old boot
  * old boot
  * old boot
  * old boot
@@ -527,18 +529,14 @@ impl SeedableRng for NotRandom {
 	}
 }
 
-impl RngCore for NotRandom {
-	fn next_u32(&mut self) -> u32 {
-		self.seed as u32
-	}
-
-	fn next_u64(&mut self) -> u64 {
-		self.seed
-	}
-
-	fn fill_bytes(&mut self, dest: &mut [u8]) {
+impl rand::TryRng for NotRandom {
+	type Error = Infallible;
+	fn try_next_u32(&mut self) -> Result<u32, Self::Error> {Ok(self.seed as u32)}
+	fn try_next_u64(&mut self) -> Result<u64, Self::Error> {Ok(self.seed)}
+	fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), Self::Error> {
 		for i in 0..dest.len() {
 			dest[i] = self.seed as u8;
 		}
+		Ok(())
 	}
 }

@@ -1,7 +1,7 @@
 #![deny(unused_must_use)]
 #![deny(missing_docs)]
 use crate::errors::NoValuesError;
-use rand::Rng;
+use rand::prelude::*;
 use serde::{Deserialize, Serialize};
 
 /// An item represents an entry in a random look-up table. It has a probability weight and a text
@@ -47,10 +47,10 @@ impl LookUpTable {
 	/// Draws one item at random from the lookup table or returns a `NoValuesError` if there are
 	/// no items to draw from.
 	/// # Arguments
-	/// * `rng` - A random number generator implementing the `Rng` trait.
+	/// * `rng` - A random number generator implementing the `RngExt` trait.
 	/// # Returns
 	/// Returns a randomly selected `Item` or a `NoValuesError` if the table is empty.
-	pub fn draw_random(&self, rng: &mut impl Rng) -> Result<Item, NoValuesError> {
+	pub fn draw_random(&self, rng: &mut impl RngExt) -> Result<Item, NoValuesError> {
 		if self.items.len() == 0 {
 			return Err(NoValuesError {});
 		}
@@ -77,13 +77,13 @@ impl LookUpTable {
 	/// Draws a specified number of items at random from the lookup table (with possible duplicates)
 	/// or returns a `NoValuesError` if there are no items to draw from.
 	/// # Arguments
-	/// * `rng` - A random number generator implementing the `Rng` trait.
+	/// * `rng` - A random number generator implementing the `RngExt` trait.
 	/// * `count` - The number of items to draw.
 	/// # Returns
 	/// Returns a vector of randomly selected `Item`s or a `NoValuesError` if the table is empty.
 	pub fn draw_n_random(
 		&self,
-		rng: &mut impl Rng,
+		rng: &mut impl RngExt,
 		count: usize,
 	) -> Result<Vec<Item>, NoValuesError> {
 		let mut result: Vec<Item> = Vec::with_capacity(count);
@@ -96,11 +96,11 @@ impl LookUpTable {
 	/// Shuffles all the items and returns the shuffled list or returns a NoValuesError is there are
 	/// no items to draw from
 	/// # Arguments
-	/// * `rng` - A random number generator implementing the `Rng` trait.
+	/// * `rng` - A random number generator implementing the `RngExt` trait.
 	/// * `count` - The number of items to draw.
 	/// # Returns
 	/// Returns a vector of randomly selected `Item`s or a `NoValuesError` if the table is empty.
-	pub fn shuffle(&self, rng: &mut impl Rng) -> Result<Vec<Item>, NoValuesError> {
+	pub fn shuffle(&self, rng: &mut impl RngExt) -> Result<Vec<Item>, NoValuesError> {
 		if self.items.len() == 0 {
 			return Err(NoValuesError {});
 		}
@@ -115,11 +115,11 @@ impl LookUpTable {
 	/// Shuffles and draws the requested number or items or returns a NoValuesError is there are no
 	/// items to draw from
 	/// # Arguments
-	/// * `rng` - A random number generator implementing the `Rng` trait.
+	/// * `rng` - A random number generator implementing the `RngExt` trait.
 	/// * `count` - The number of items to draw.
 	/// # Returns
 	/// Returns a vector of randomly selected `Item`s or a `NoValuesError` if the table is empty.
-	pub fn shuffle_draw(&self, rng: &mut impl Rng, count: usize) -> Result<Vec<Item>, NoValuesError> {
+	pub fn shuffle_draw(&self, rng: &mut impl RngExt, count: usize) -> Result<Vec<Item>, NoValuesError> {
 		if self.items.len() == 0 {
 			return Err(NoValuesError {});
 		}
