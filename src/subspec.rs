@@ -1,7 +1,6 @@
 #![deny(unused_must_use)]
 #![deny(missing_docs)]
 use serde::{Deserialize, Serialize};
-use serde_yaml;
 
 /// Struct to hold all the possible substitution options for a substitution token
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -10,7 +9,7 @@ pub struct SubstitutionOptions {
 	pub id: String,
 	/// Option to specify number of items to draw from the lookup table. Can be either a number or
 	/// a dice expression (eg "2d6+3" meaning 'roll two 6-sided dice and then add 3 to the total')
-	pub count: Option<serde_yaml::Value>,
+	pub count: Option<serde_yaml_neo::Value>,
 	/// If drawing more than one, what method to use. Either "random" for unbiased random draw or
 	/// "shuffle" to avoid drawing the same item twice (until all items are used)
 	pub method: Option<String>,
@@ -75,13 +74,13 @@ mod unit_tests {
 
 	#[test]
 	fn test_serde_parse_1() {
-		let sub_spec: SubstitutionOptions = serde_yaml::from_str(
+		let sub_spec: SubstitutionOptions = serde_yaml_neo::from_str(
 			r#"{"id": "animals.plural", "count": 3, "method": "shuffle", "sep": ", ", "last-sep": ", and "}"#
 		).expect("Failed to parse");
 		assert_eq!(sub_spec.id.as_str(), "animals.plural");
 		assert_eq!(
 			sub_spec.count,
-			Some(serde_yaml::Value::Number(serde_yaml::Number::from(3)))
+			Some(serde_yaml_neo::Value::Number(serde_yaml_neo::Number::from(3)))
 		);
 		assert_eq!(sub_spec.method, Some(String::from("shuffle")));
 		assert_eq!(sub_spec.sep, Some(String::from(", ")));
@@ -95,13 +94,13 @@ mod unit_tests {
 	}
 	#[test]
 	fn test_serde_parse_2() {
-		let sub_spec: SubstitutionOptions = serde_yaml::from_str(
+		let sub_spec: SubstitutionOptions = serde_yaml_neo::from_str(
 			r#"{"id": "animals.plural", "count": "1d4+1", "method": "random", "sep": ", ", "last-sep": ", and "}"#
 		).expect("Failed to parse");
 		assert_eq!(sub_spec.id.as_str(), "animals.plural");
 		assert_eq!(
 			sub_spec.count,
-			Some(serde_yaml::Value::String(String::from("1d4+1")))
+			Some(serde_yaml_neo::Value::String(String::from("1d4+1")))
 		);
 		assert_eq!(sub_spec.method, Some(String::from("random")));
 		assert_eq!(sub_spec.sep, Some(String::from(", ")));
@@ -115,14 +114,14 @@ mod unit_tests {
 	}
 	#[test]
 	fn test_serde_parse_2b() {
-		let sub_spec: SubstitutionOptions = serde_yaml::from_str(
+		let sub_spec: SubstitutionOptions = serde_yaml_neo::from_str(
 			r#"{id: animals.plural, count: 1d4+1, method: random, sep: ", ", last-sep: ", and "}"#,
 		)
 		.expect("Failed to parse");
 		assert_eq!(sub_spec.id.as_str(), "animals.plural");
 		assert_eq!(
 			sub_spec.count,
-			Some(serde_yaml::Value::String(String::from("1d4+1")))
+			Some(serde_yaml_neo::Value::String(String::from("1d4+1")))
 		);
 		assert_eq!(sub_spec.method, Some(String::from("random")));
 		assert_eq!(sub_spec.sep, Some(String::from(", ")));
@@ -137,7 +136,7 @@ mod unit_tests {
 	#[test]
 	fn test_serde_parse_3() {
 		let sub_spec: SubstitutionOptions =
-			serde_yaml::from_str(r#"{"id": "animals.plural"}"#).expect("Failed to parse");
+			serde_yaml_neo::from_str(r#"{"id": "animals.plural"}"#).expect("Failed to parse");
 		assert_eq!(sub_spec.id.as_str(), "animals.plural");
 		assert!(sub_spec.count.is_none());
 		assert!(sub_spec.method.is_none());
@@ -152,14 +151,14 @@ mod unit_tests {
 	}
 	#[test]
 	fn test_serde_parse_4() {
-		let sub_spec: SubstitutionOptions = serde_yaml::from_str(
+		let sub_spec: SubstitutionOptions = serde_yaml_neo::from_str(
 			r#"{"id": "animals.plural", "count": 3, "prefix": " * ", "suffix": "\n", "case": "first"}"#,
 		)
 		.expect("Failed to parse");
 		assert_eq!(sub_spec.id.as_str(), "animals.plural");
 		assert_eq!(
 			sub_spec.count,
-			Some(serde_yaml::Value::Number(serde_yaml::Number::from(3)))
+			Some(serde_yaml_neo::Value::Number(serde_yaml_neo::Number::from(3)))
 		);
 		assert!(sub_spec.method.is_none());
 		assert!(sub_spec.sep.is_none());
@@ -174,7 +173,7 @@ mod unit_tests {
 	#[test]
 	fn test_serde_parse_5() {
 		let sub_spec: SubstitutionOptions =
-			serde_yaml::from_str(r#"{"id": "animal", "ref": "pet"}"#).expect("Failed to parse");
+			serde_yaml_neo::from_str(r#"{"id": "animal", "ref": "pet"}"#).expect("Failed to parse");
 		assert_eq!(sub_spec.id.as_str(), "animal");
 		assert!(sub_spec.count.is_none());
 		assert!(sub_spec.method.is_none());
