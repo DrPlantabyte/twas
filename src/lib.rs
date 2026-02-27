@@ -2,11 +2,9 @@
 #![deny(missing_docs)]
 #![doc = include_str!("../README.md")]
 use dicexp::{DiceBag, new_simple_rng, simple_rng};
-use rand::Rng;
-use rand::rngs::StdRng;
+use rand::prelude::*;
 use regex::Regex;
 use serde_json;
-use serde_yaml;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::fs::File;
@@ -87,7 +85,7 @@ println!("{}", interpreter.eval(story).expect("Failed to eval"));
 #[derive(Debug)]
 pub struct Interpreter<R>
 where
-	R: Rng,
+	R: RngExt,
 {
 	registry: HashMap<String, LookUpTable>,
 	dice: DiceBag<StdRng>,
@@ -97,7 +95,7 @@ where
 
 impl<R> Interpreter<R>
 where
-	R: Rng,
+	R: RngExt,
 {
 	/// Creates a new interpreter using the provided random number generator.
 	/// # Arguments
@@ -406,14 +404,14 @@ where
 	/// maps or lists, then it is recursively parsed.
 	fn load_yaml_mapping(
 		&mut self,
-		map: serde_yaml::mapping::Mapping,
+		map: serde_yaml_neo::mapping::Mapping,
 		id_prefix: &str,
 	) -> Result<(), ParsingError> {
 		let id = String::from(id_prefix);
 		for (k, v) in map {
 			match k {
-				serde_yaml::Value::String(text) => match v {
-					serde_yaml::Value::Number(weight) => {
+				serde_yaml_neo::Value::String(text) => match v {
+					serde_yaml_neo::Value::Number(weight) => {
 						let weight: f64 = weight.as_f64().ok_or_else(|| ParseError {
 							msg: Some(format!("Could not convert {:?} to float", weight)),
 							line: None,
@@ -421,7 +419,7 @@ where
 						})?;
 						self.get_or_create_lut(&id).add_item(text, weight);
 					},
-					serde_yaml::Value::Mapping(nested_map) => {
+					serde_yaml_neo::Value::Mapping(nested_map) => {
 						// sub-table
 						let mut next_id = id.clone();
 						if !id_prefix.is_empty() {
@@ -430,7 +428,7 @@ where
 						next_id.push_str(text.as_str());
 						self.load_yaml_mapping(nested_map, next_id.as_str())?;
 					},
-					serde_yaml::Value::Sequence(list) => {
+					serde_yaml_neo::Value::Sequence(list) => {
 						let mut next_id = id.clone();
 						if !id_prefix.is_empty() {
 							next_id.push_str("/");
@@ -470,14 +468,14 @@ where
 	/// Parses a YAML list object as an unbiased look-up table
 	fn load_yaml_sequence(
 		&mut self,
-		list: serde_yaml::Sequence,
+		list: serde_yaml_neo::Sequence,
 		id_prefix: &str,
 	) -> Result<(), ParsingError> {
 		let id = String::from(id_prefix);
 		for entry in list {
 			match entry {
 				// list of strings
-				serde_yaml::Value::String(text) => self.get_or_create_lut(&id).add_item(text, 1f64),
+				serde_yaml_neo::Value::String(text) => self.get_or_create_lut(&id).add_item(text, 1f64),
 				_ => {
 					return Err(
 						ParseError {
@@ -832,12 +830,12 @@ where
 	/// # Returns
 	/// A `Result` indicating success or failure.
 	pub fn load_yaml<I: Read>(&mut self, id: &str, reader: I) -> Result<(), ParsingError> {
-		let parsed: serde_yaml::Value = serde_yaml::from_reader(reader)?;
+		let parsed: serde_yaml_neo::Value = serde_yaml_neo::from_reader(reader)?;
 		match parsed {
-			serde_yaml::Value::Sequence(list) => {
+			serde_yaml_neo::Value::Sequence(list) => {
 				self.load_yaml_sequence(list, id)?;
 			},
-			serde_yaml::Value::Mapping(map) => {
+			serde_yaml_neo::Value::Mapping(map) => {
 				// map of items and weights or map of maps of items
 				self.load_yaml_mapping(map, id)?
 			},
@@ -907,12 +905,12 @@ impl Interpreter<rand::rngs::StdRng> {
 }
 
 /// This is where all the action happens when evaluating a string for text substitution
-fn do_eval<R: Rng>(
+fn do_eval<R: RngExt>(
 	text: String,
 	start_from: usize,
 	reg: &HashMap<String, LookUpTable>,
 	dice: &mut DiceBag<R>,
-	rng: &mut impl Rng,
+	rng: &mut impl RngExt,
 	recursion_limit: usize,
 	recursion: usize,
 ) -> Result<String, ParsingError> {
@@ -971,12 +969,12 @@ fn do_eval<R: Rng>(
 
 /// Generate a substitution from the provided substitution token, such as `${animal}` (note that the
 /// `${` and `}` have already been stripped away).
-fn do_sub<R: Rng>(
+fn do_sub<R: RngExt>(
 	token: &str,
 	reg: &HashMap<String, LookUpTable>,
 	dice: &mut DiceBag<R>,
 	ref_map: &mut HashMap<String, String>,
-	rng: &mut impl Rng,
+	rng: &mut impl RngExt,
 	recursion_limit: usize,
 	recursion: usize,
 ) -> Result<String, ParsingError> {
@@ -986,14 +984,14 @@ fn do_sub<R: Rng>(
 	// try YAML parsing in case user forgot to use double braces {{ }}
 	if token.starts_with("{") && token.ends_with("}") {
 		// JSON string with advanced options
-		sub = serde_yaml::from_str(token)?;
+		sub = serde_yaml_neo::from_str(token)?;
 	} else {
 		// simple token (but might have ref suffix)
 		let token = token.trim();
 		if token.starts_with("id:") || token.starts_with(r#""id":"#) {
 			// looks like they forgot to use {{ double braces }} for JSON/YAML
 			//eprintln!("WARNING: Substitution token '${{ {} }}' looks like JSON/YAML, but was not enclosed in double-braces. Treating it as JSON/YAML.", token);
-			sub = serde_yaml::from_str(format!("{{{}}}", token).as_str())?;
+			sub = serde_yaml_neo::from_str(format!("{{{}}}", token).as_str())?;
 		} else {
 			if token.starts_with("@") {
 				// simple ref lookup: @ref
@@ -1073,14 +1071,14 @@ fn do_sub<R: Rng>(
 		match sub.count {
 			None => num_to_draw = 1,
 			Some(count_val) => match count_val {
-				serde_yaml::Value::Number(n) => {
+				serde_yaml_neo::Value::Number(n) => {
 					num_to_draw = n.as_u64().ok_or_else(|| ParseError {
 						msg: Some(format!("{} as unsigned integer", n)),
 						line: None,
 						col: None,
 					})? as usize
 				},
-				serde_yaml::Value::String(dice_ex) => {
+				serde_yaml_neo::Value::String(dice_ex) => {
 					let mut dice = DiceBag::new(simple_rng(rng.random()));
 					let roll = dice.eval_total(dice_ex.as_str()).map_err(|_| ParseError {
 						msg: Some(format!("'{}' is not a valid dice expression", dice_ex)),
@@ -1289,7 +1287,7 @@ fn indefinite_article_prefix_for(text: &str) -> &'static str {
 /// Handle `#{...}` number generation (eg "2d6+3")
 fn do_dice<R>(dice_exp: &str, dice: &mut DiceBag<R>) -> Result<String, ParsingError>
 where
-	R: Rng,
+	R: RngExt,
 {
 	let roll =
 		dice
